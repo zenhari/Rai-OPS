@@ -198,7 +198,7 @@ function buildProgressiveCode($selectedProccess, $selectedSubProccess, $selected
         // Second part
         if ($codeParts[1] !== null) {
             $previewParts[] = $codeParts[1];
-    } else {
+        } else {
             $previewParts[] = '?';
         }
         // Remaining parts: always ?
@@ -209,7 +209,7 @@ function buildProgressiveCode($selectedProccess, $selectedSubProccess, $selected
     }
     
     // Step 3: Show Y - A - A - ? (first three parts if available, rest as ?)
-        if (!empty($selectedReson)) {
+    if (!empty($selectedReson)) {
         $previewParts = [];
         // First part
         if ($codeParts[0] !== null) {
@@ -237,7 +237,7 @@ function buildProgressiveCode($selectedProccess, $selectedSubProccess, $selected
     }
     
     // Step 4: Show complete code (Y - A - A - A) or with ? for missing parts
-        if (!empty($selectedStackHolder)) {
+    if (!empty($selectedStackHolder)) {
         $previewParts = [];
         for ($i = 0; $i < $totalParts; $i++) {
             if ($codeParts[$i] !== null) {

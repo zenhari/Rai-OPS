@@ -60,12 +60,24 @@ try {
             $dutyViolations = [];
             $flightViolations = [];
             $fdpViolationsCount = 0;
+            $hasSplitDuty = false; // Track if any FDP has split duty
             
             foreach ($crewFDPData as $data) {
+                // Check if this FDP has split duty
+                $fdpHasSplitDuty = isset($data['has_split_duty']) && $data['has_split_duty'] === true;
+                if ($fdpHasSplitDuty) {
+                    $hasSplitDuty = true;
+                }
+                
                 // Calculate Max FDP based on FDP start time and sectors
                 // For now, assume crew is acclimatised (use Table-1)
                 // TODO: Add logic to determine acclimatisation state
                 $maxAllowed = calculateMaxFDP($data['fdp_start'] ?? null, $data['sectors'] ?? 1, true);
+                
+                // If split duty exists, use max_fdp_with_split instead
+                if ($fdpHasSplitDuty && isset($data['max_fdp_with_split']) && $data['max_fdp_with_split'] !== null) {
+                    $maxAllowed = $data['max_fdp_with_split'];
+                }
                 
                 // FDP violations (when FDP hours exceed max allowed)
                 // If max_allowed is null, fallback to 14 hours check
@@ -91,7 +103,8 @@ try {
                         'max_allowed' => $maxAllowed,
                         'flight_hours' => $data['flight_hours'] ?? 0,
                         'routes' => $data['routes'] ?? 'N/A',
-                        'aircraft' => $data['aircraft'] ?? 'N/A'
+                        'aircraft' => $data['aircraft'] ?? 'N/A',
+                        'has_split_duty' => $fdpHasSplitDuty
                     ];
                 }
             }
@@ -201,7 +214,8 @@ try {
                 'total_fdp_hours' => round($totalFDPHours, 1),
                 'total_duty_hours' => round($totalDutyHours, 1),
                 'fdp_violations' => $fdpViolationsCount,
-                'last_duty_date' => $lastDutyDate
+                'last_duty_date' => $lastDutyDate,
+                'has_split_duty' => $hasSplitDuty
             ];
             
             // Send crew completed data with violations

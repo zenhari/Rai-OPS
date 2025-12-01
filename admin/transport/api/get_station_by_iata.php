@@ -47,5 +47,3 @@ echo json_encode([
 ]);
 
 
-
-

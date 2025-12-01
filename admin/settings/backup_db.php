@@ -44,12 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         // Try to find mysqldump
         function find_mysqldump() {
             $candidates = [];
-            // 1) which/where
-            $which = trim((string)@shell_exec('which mysqldump 2>/dev/null'));
-            if ($which !== '') $candidates[] = $which;
-            $where = trim((string)@shell_exec('where mysqldump 2>nul'));
-            if ($where !== '') {
-                foreach (preg_split('/\r?\n/', $where) as $p) if ($p !== '') $candidates[] = $p;
+            // 1) which/where (only if shell_exec is available)
+            if (function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')))) {
+                $which = trim((string)@shell_exec('which mysqldump 2>/dev/null'));
+                if ($which !== '') $candidates[] = $which;
+                $where = trim((string)@shell_exec('where mysqldump 2>nul'));
+                if ($where !== '') {
+                    foreach (preg_split('/\r?\n/', $where) as $p) if ($p !== '') $candidates[] = $p;
+                }
             }
             // 2) common paths (Linux/macOS)
             foreach ([
@@ -73,6 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
         
         function run_mysqldump($mysqldump, $host, $db, $user, $pass, $charset, $outFile) {
+            // Check if exec() is available
+            if (!function_exists('exec') || in_array('exec', explode(',', ini_get('disable_functions')))) {
+                return [false, 'exec() function is not available'];
+            }
+            
             $tmpCnf = tempnam(sys_get_temp_dir(), 'mycnf_');
             $errFile = tempnam(sys_get_temp_dir(), 'mdump_err_');
             $ok = false;
@@ -218,7 +225,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $usedFallback = false;
         $tmpDump = tempnam(sys_get_temp_dir(), 'dump_');
         
-        if ($mysqldump) {
+        // Check if exec() is available before trying to use mysqldump
+        $execAvailable = function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions')));
+        
+        if ($mysqldump && $execAvailable) {
             [$ok, $err] = run_mysqldump($mysqldump, DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_CHARSET, $tmpDump);
             if (!$ok) {
                 $usedFallback = true;

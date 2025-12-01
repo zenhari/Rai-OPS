@@ -339,42 +339,42 @@ function formatStatus($isVoided, $isClosed) {
                                             <tr>
                                                 <td colspan="9" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                                                     No MEL data found with valid reference.
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($filteredData as $item): ?>
-                                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['id']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                        <?php echo safeOutput($item['etl_number']); ?>
-                                                    </div>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['report_number']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['mel_cat']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['rev_no']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo formatDate($item['due_date']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap">
-                                                    <?php echo formatStatus($item['is_voided'], $item['is_closed']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['extension_duration']); ?>
-                                                </td>
-                                                <td class="px-4 py-4 text-sm text-gray-900 dark:text-white">
-                                                    <?php echo safeOutput($item['reference_revno_date']); ?>
                                                 </td>
                                             </tr>
-                                        <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <?php foreach ($filteredData as $item): ?>
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['id']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                                            <?php echo safeOutput($item['etl_number']); ?>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['report_number']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['mel_cat']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['rev_no']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo formatDate($item['due_date']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        <?php echo formatStatus($item['is_voided'], $item['is_closed']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['extension_duration']); ?>
+                                                    </td>
+                                                    <td class="px-4 py-4 text-sm text-gray-900 dark:text-white">
+                                                        <?php echo safeOutput($item['reference_revno_date']); ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </tbody>

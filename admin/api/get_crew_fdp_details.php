@@ -115,9 +115,14 @@ try {
             if ($hasSplitDuty) {
                 $breakNet = isset($data['split_duty_break_net']) ? $data['split_duty_break_net'] : null;
                 $breakDisplay = $breakNet !== null ? number_format($breakNet, 1) . 'h' : 'N/A';
+                $woclEncroached = isset($data['wocl_encroached']) ? $data['wocl_encroached'] : null;
+                $woclInfo = '';
+                if ($woclEncroached !== null && $woclEncroached > 0) {
+                    $woclInfo = ' | WOCL: ' . number_format($woclEncroached, 2) . 'h';
+                }
                 $html .= '<td class="px-6 py-4 whitespace-nowrap">';
-                $html .= '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" title="Split Duty Break (Net): ' . $breakDisplay . '">';
-                $html .= '<i class="fas fa-pause-circle mr-1"></i>YES (' . $breakDisplay . ')';
+                $html .= '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" title="Split Duty Break (Net): ' . $breakDisplay . ($woclInfo ? $woclInfo : ' | WOCL: Not encroached') . '">';
+                $html .= '<i class="fas fa-pause-circle mr-1"></i>YES (' . $breakDisplay . ($woclInfo ? $woclInfo : '') . ')';
                 $html .= '</span>';
                 $html .= '</td>';
             } else {

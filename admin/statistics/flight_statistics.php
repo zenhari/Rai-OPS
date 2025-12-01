@@ -597,7 +597,6 @@ usort($routeProfits, function($a, $b) {
                             // Update display immediately
                             const displayElement = document.getElementById('ticket_price_display_' + rego);
                             if (displayElement) {
-
                                 displayElement.textContent = parseFloat(ticketPrice).toLocaleString('en-US');
                             }
                             closeTicketPriceModal();

@@ -56,14 +56,46 @@ foreach ($users as $user) {
     $usersById[$user['id']] = $user;
 }
 
+// Helper function to convert datetime from Tehran timezone to UTC
+function convertToUTC($datetime) {
+    if (empty($datetime) || $datetime == '0000-00-00 00:00:00') {
+        return null;
+    }
+    try {
+        // Assume the datetime is in Tehran timezone
+        $tehranTimezone = new DateTimeZone('Asia/Tehran');
+        $utcTimezone = new DateTimeZone('UTC');
+        
+        // Create DateTime object with Tehran timezone
+        $date = new DateTime($datetime, $tehranTimezone);
+        
+        // Convert to UTC
+        $date->setTimezone($utcTimezone);
+        
+        return $date;
+    } catch (Exception $e) {
+        // If conversion fails, try to parse as-is and assume it's already UTC
+        try {
+            return new DateTime($datetime, new DateTimeZone('UTC'));
+        } catch (Exception $e2) {
+            return null;
+        }
+    }
+}
+
 // Helper function to convert datetime to Excel serial date
 function datetimeToExcelSerial($datetime) {
     if (empty($datetime) || $datetime == '0000-00-00 00:00:00') {
         return '';
     }
     try {
-        $date = new DateTime($datetime);
-        $excelEpoch = new DateTime('1899-12-30');
+        // Convert to UTC first
+        $date = convertToUTC($datetime);
+        if (!$date) {
+            return '';
+        }
+        
+        $excelEpoch = new DateTime('1899-12-30', new DateTimeZone('UTC'));
         $diff = $date->diff($excelEpoch);
         $days = $diff->days;
         $hours = $date->format('H');
@@ -137,7 +169,8 @@ if ($action === 'excel') {
     echo '<th>Task Start Time</th>';
     echo '<th>Task End Date</th>';
     echo '<th>Task End Time</th>';
-    echo '<th>Route</th>';
+    echo '<th>Departure</th>';
+    echo '<th>Arrival</th>';
     echo '<th>Resources Text</th>';
     for ($i = 1; $i <= 10; $i++) {
         if ($crewHasData[$i]) {
@@ -148,7 +181,7 @@ if ($action === 'excel') {
     
     // Data rows
     foreach ($flights as $flight) {
-        // Parse TaskStart and TaskEnd
+        // Parse TaskStart and TaskEnd - Convert to UTC
         $taskStartDate = '';
         $taskStartTime = '';
         $taskEndDate = '';
@@ -156,9 +189,11 @@ if ($action === 'excel') {
         
         if (!empty($flight['TaskStart']) && $flight['TaskStart'] != '0000-00-00 00:00:00') {
             try {
-                $taskStart = new DateTime($flight['TaskStart']);
-                $taskStartDate = $taskStart->format('Y-m-d');
-                $taskStartTime = $taskStart->format('H:i:s');
+                $taskStart = convertToUTC($flight['TaskStart']);
+                if ($taskStart) {
+                    $taskStartDate = $taskStart->format('Y-m-d');
+                    $taskStartTime = $taskStart->format('H:i:s');
+                }
             } catch (Exception $e) {
                 // Keep empty
             }
@@ -166,17 +201,20 @@ if ($action === 'excel') {
         
         if (!empty($flight['TaskEnd']) && $flight['TaskEnd'] != '0000-00-00 00:00:00') {
             try {
-                $taskEnd = new DateTime($flight['TaskEnd']);
-                $taskEndDate = $taskEnd->format('Y-m-d');
-                $taskEndTime = $taskEnd->format('H:i:s');
+                $taskEnd = convertToUTC($flight['TaskEnd']);
+                if ($taskEnd) {
+                    $taskEndDate = $taskEnd->format('Y-m-d');
+                    $taskEndTime = $taskEnd->format('H:i:s');
+                }
             } catch (Exception $e) {
                 // Keep empty
             }
         }
         
-        // Parse Route
+        // Parse Route - Split into Departure and Arrival
         $routeParts = parseRoute($flight['Route']);
-        $route = $routeParts['origin'] . "\t" . $routeParts['destination'];
+        $departure = $routeParts['origin'];
+        $arrival = $routeParts['destination'];
         
         // Resources Text (only Rego)
         $resourcesText = !empty($flight['Rego']) ? $flight['Rego'] : '';
@@ -196,7 +234,8 @@ if ($action === 'excel') {
         echo '<td>' . $taskStartTime . '</td>';
         echo '<td>' . $taskEndDate . '</td>';
         echo '<td>' . $taskEndTime . '</td>';
-        echo '<td>' . $route . '</td>';
+        echo '<td>' . htmlspecialchars($departure) . '</td>';
+        echo '<td>' . htmlspecialchars($arrival) . '</td>';
         echo '<td>' . htmlspecialchars($resourcesText) . '</td>';
         for ($i = 1; $i <= 10; $i++) {
             if ($crewHasData[$i]) {
@@ -324,11 +363,12 @@ if ($action === 'excel') {
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TaskName</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task Start Date</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task Start Time</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task End Date</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task End Time</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Route</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task Start Date (UTC)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task Start Time (UTC)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task End Date (UTC)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task End Time (UTC)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Departure</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Arrival</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Resources Text</th>
                                     <?php 
                                     $crewColumnsCount = 0;
@@ -345,7 +385,7 @@ if ($action === 'excel') {
                             </thead>
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php 
-                                $colspan = 8 + $crewColumnsCount;
+                                $colspan = 9 + $crewColumnsCount; // 9 columns: TaskName, Status, Start Date, Start Time, End Date, End Time, Departure, Arrival, Resources Text
                                 if (empty($flights)): ?>
                                     <tr>
                                         <td colspan="<?php echo $colspan; ?>" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
@@ -369,10 +409,12 @@ if ($action === 'excel') {
                                         
                                         if (!empty($flight['TaskStart']) && $flight['TaskStart'] != '0000-00-00 00:00:00') {
                                             try {
-                                                $taskStart = new DateTime($flight['TaskStart']);
-                                                $taskStartDate = $taskStart->format('Y-m-d');
-                                                $taskStartTime = $taskStart->format('H:i:s');
-                                                $taskStartSerial = datetimeToExcelSerial($flight['TaskStart']);
+                                                $taskStart = convertToUTC($flight['TaskStart']);
+                                                if ($taskStart) {
+                                                    $taskStartDate = $taskStart->format('Y-m-d');
+                                                    $taskStartTime = $taskStart->format('H:i:s');
+                                                    $taskStartSerial = datetimeToExcelSerial($flight['TaskStart']);
+                                                }
                                             } catch (Exception $e) {
                                                 $taskStartSerial = '';
                                             }
@@ -380,16 +422,18 @@ if ($action === 'excel') {
                                         
                                         if (!empty($flight['TaskEnd']) && $flight['TaskEnd'] != '0000-00-00 00:00:00') {
                                             try {
-                                                $taskEnd = new DateTime($flight['TaskEnd']);
-                                                $taskEndDate = $taskEnd->format('Y-m-d');
-                                                $taskEndTime = $taskEnd->format('H:i:s');
-                                                $taskEndSerial = datetimeToExcelSerial($flight['TaskEnd']);
+                                                $taskEnd = convertToUTC($flight['TaskEnd']);
+                                                if ($taskEnd) {
+                                                    $taskEndDate = $taskEnd->format('Y-m-d');
+                                                    $taskEndTime = $taskEnd->format('H:i:s');
+                                                    $taskEndSerial = datetimeToExcelSerial($flight['TaskEnd']);
+                                                }
                                             } catch (Exception $e) {
                                                 $taskEndSerial = '';
                                             }
                                         }
                                         
-                                        // Parse Route
+                                        // Parse Route - Split into Departure and Arrival
                                         $routeParts = parseRoute($flight['Route']);
                                         
                                         // Format crew members
@@ -436,7 +480,12 @@ if ($action === 'excel') {
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="text-sm text-gray-900 dark:text-white">
-                                                    <?php echo htmlspecialchars($routeParts['origin']); ?>	<?php echo htmlspecialchars($routeParts['destination']); ?>
+                                                    <?php echo htmlspecialchars($routeParts['origin']); ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900 dark:text-white">
+                                                    <?php echo htmlspecialchars($routeParts['destination']); ?>
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4">

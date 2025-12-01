@@ -4,7 +4,7 @@
  * Project: Raimon Fleet
  * Company: Raimon Airways
  * PHP Version: 8.2.12
-
+ * Database: MariaDB 10.4.32
  */
 
 // Project Information
@@ -6917,7 +6917,7 @@ function checkExtendedRecoveryRest($restDuration, $localNights) {
  * @param int $extensionsIn7Days - Number of extensions in last 7 days
  * @return array - ['allowed' => bool, 'max_extension' => float, 'reason' => string]
  */
-function checkFDPExtensionAllowed($sectors, $woclEncroachment = null, $extensionsIn7Days = 0) {
+function checkFDPExtensionAllowed($sectors, $after backupEncroachment = null, $extensionsIn7Days = 0) {
     // Max extension: up to +1:00
     $maxExtension = 1.0;
     
