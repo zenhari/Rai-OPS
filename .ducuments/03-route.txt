@@ -1,0 +1,102 @@
+# Route Management Guide for Raimon Fleet Management System
+
+## Problem Description
+When navigating between pages in different directories, relative paths cause "page not found" errors because the browser doesn't recognize the project folder structure.
+
+## Solution: Absolute Paths
+
+### 1. Updated getAbsolutePath() Function
+```php
+// Function to generate absolute paths based on current location
+function getAbsolutePath($path) {
+    // Always use absolute path from project root
+    return '/' . ltrim($path, '/');
+}
+```
+
+### 2. Usage Examples
+```php
+// In sidebar.php
+<a href="<?php echo getAbsolutePath('dashboard/'); ?>">Dashboard</a>
+<a href="<?php echo getAbsolutePath('admin/users/index.php'); ?>">All Users</a>
+<a href="<?php echo getAbsolutePath('admin/fleet/aircraft/'); ?>">Aircraft</a>
+```
+
+### 3. Header Redirects
+All header redirects should use absolute paths:
+
+```php
+// Login redirects
+header('Location: /login.php');
+
+// Dashboard redirects  
+header('Location: /dashboard/');
+
+// Admin page redirects
+header('Location: /admin/users/index.php');
+header('Location: /admin/fleet/aircraft/index.php');
+```
+
+### 4. Files Updated
+- `login.php` - Login redirects
+- `admin/profile/index.php` - Login redirect
+- `admin/users/index.php` - Login redirect
+- `admin/users/edit.php` - Login and form redirects
+- `admin/users/add.php` - Login redirect
+- `admin/logout.php` - Login redirects
+- `admin/fleet/aircraft/index.php` - Login redirect
+- `admin/fleet/aircraft/edit.php` - Login and form redirects
+- `includes/sidebar.php` - Login redirect and navigation links with hierarchical menu structure
+- `logout.php` - Login and logout redirects
+- `dashboard/index.php` - Login redirect
+
+### 5. Sidebar Navigation Structure
+The sidebar now includes a hierarchical menu structure:
+
+```
+Fleet Management
+├── Aircraft (/admin/fleet/aircraft/)
+├── Routes (/admin/fleet/routes/)
+├── Stations (/admin/fleet/routes/stations.php)
+├── Delay Codes (/admin/fleet/delay_codes/index.php)
+├── ETL Report (/admin/fleet/etl_report/index.php)
+└── HandOver (/admin/fleet/handover/index.php)
+
+Flight Management
+├── Flight Manager (/admin/flights/)
+├── Crew Scheduling (/admin/crew/scheduling.php)
+├── Flight Monitoring (/admin/operations/flight_monitoring.php)
+├── Flight Time (/admin/operations/flight_time.php)
+├── FDP Calculation (/admin/operations/fdp_calculation.php)
+├── Crew List (/admin/operations/crew_list.php)
+├── Journey Log (/admin/operations/journey_log.php)
+└── METAR/TAFOR (/admin/operations/metar_tafor.php)
+
+Flight Load
+└── All Tickets (/admin/flight_load/index.php)
+
+E-Lib
+└── Electronic Library (/admin/elib/index.php)
+
+EFB
+└── Electronic Flight Bag (/admin/efb/index.php)
+
+Recency
+├── Personnel Recency (/admin/users/personnel_recency/index.php)
+└── Certificate (/admin/users/certificate/index.php)
+```
+
+All navigation links use the `getAbsolutePath()` function to ensure consistent routing.
+
+### 6. Benefits
+- ✅ No more "page not found" errors
+- ✅ Consistent navigation across all pages
+- ✅ Works regardless of current directory depth
+- ✅ Simple and maintainable solution
+- ✅ Hierarchical menu structure for better organization
+
+### 7. Important Notes
+- Always use `/` as the base path
+- Remove leading slashes from input paths with `ltrim($path, '/')`
+- Test all navigation links after implementing changes
+- Keep the project folder name consistent across all environments

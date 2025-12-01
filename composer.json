@@ -1,0 +1,13 @@
+{
+    "name": "rai-fleet/html-editor",
+    "description": "HTML Editor for Rai Fleet",
+    "type": "project",
+    "authors": [
+        {
+            "name": "Rai Fleet Team"
+        }
+    ],
+    "require": {
+        "mpdf/mpdf": "8.2"
+    }
+}

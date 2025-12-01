@@ -1,0 +1,290 @@
+# Access Control System Documentation
+# سیستم کنترل دسترسی - مستندات
+
+## Overview / نمای کلی
+This document explains how the access control system works in the Rai-Fleet application and how to properly implement it across all pages.
+
+این مستند توضیح می‌دهد که سیستم کنترل دسترسی در اپلیکیشن Rai-Fleet چگونه کار می‌کند و چگونه باید در تمام صفحات به درستی پیاده‌سازی شود.
+
+## Key Functions / توابع کلیدی
+
+### 1. checkPageAccessWithRedirect($pagePath)
+**Purpose / هدف**: Main access control function that automatically redirects to access denied page if user doesn't have permission.
+
+**Usage / استفاده**:
+```php
+// At the top of every protected page
+checkPageAccessWithRedirect('admin/users/index.php');
+```
+
+**Behavior / رفتار**:
+- Checks if user is logged in
+- Checks if user has role-based access OR individual access
+- If access denied: redirects to `/access_denied.php`
+- If access granted: continues execution
+
+### 2. checkPageAccessEnhanced($pagePath)
+**Purpose / هدف**: Returns boolean value for access check (used in APIs and conditional logic).
+
+**Usage / استفاده**:
+```php
+// For conditional logic or API responses
+if (checkPageAccessEnhanced('admin/users/index.php')) {
+    // User has access
+} else {
+    // User doesn't have access
+}
+```
+
+**Behavior / رفتار**:
+- Returns `true` if user has access
+- Returns `false` if user doesn't have access
+- Does NOT redirect automatically
+
+### 3. hasPageAccess($pagePath, $userRole)
+**Purpose / هدف**: Checks only role-based access (ignores individual access).
+
+**Usage / استفاده**:
+```php
+// Check role-based access only
+$hasAccess = hasPageAccess('admin/users/index.php', 'admin');
+```
+
+## Access Control Logic / منطق کنترل دسترسی
+
+### Priority Order / ترتیب اولویت:
+1. **Individual Access** (highest priority / بالاترین اولویت)
+2. **Role-based Access** (default / پیش‌فرض)
+3. **Deny by Default** (if no permission defined / اگر مجوزی تعریف نشده)
+
+### Individual Access / دسترسی فردی:
+- Can be granted to specific users for specific pages
+- Overrides role-based restrictions
+- Can have expiration dates
+- Managed through `admin/role_permission.php`
+
+### Role-based Access / دسترسی مبتنی بر نقش:
+- Defined in `page_permissions` table
+- Each page has `required_roles` (JSON array)
+- User's role must be in the required roles list
+
+## Implementation Guidelines / راهنمای پیاده‌سازی
+
+### ✅ CORRECT Implementation / پیاده‌سازی درست:
+
+```php
+<?php
+require_once '../../config.php';
+
+// Check access at the very top of the file
+checkPageAccessWithRedirect('admin/users/index.php');
+
+// Rest of the page code...
+?>
+```
+
+### ❌ INCORRECT Implementation / پیاده‌سازی نادرست:
+
+```php
+<?php
+require_once '../../config.php';
+
+// DON'T do this - inconsistent access control
+if (!isLoggedIn() || !checkPageAccessEnhanced('admin/users/index.php')) {
+    header('Location: /login.php');
+    exit();
+}
+
+// DON'T do this - only checks role, ignores individual access
+if (!hasPageAccess('admin/users/index.php', $userRole)) {
+    // redirect...
+}
+?>
+```
+
+## Common Issues and Solutions / مشکلات رایج و راه‌حل‌ها
+
+### Issue 1: Inconsistent Access Control
+**Problem / مشکل**: Different pages use different access control methods.
+
+**Solution / راه‌حل**: Use `checkPageAccessWithRedirect()` consistently across all pages.
+
+### Issue 2: Individual Access Not Working
+**Problem / مشکل**: Users with individual access still can't access pages.
+
+**Solution / راه‌حل**: Ensure using `checkPageAccessEnhanced()` or `checkPageAccessWithRedirect()` instead of `hasPageAccess()`.
+
+### Issue 3: Role Mismatch
+**Problem / مشکل**: Role names in `users` table don't match `roles` table.
+
+**Solution / راه‌حل**: 
+- Update `roles` table to match `users` table role names
+- Use `getAllRolesFromTable()` instead of `getAllRoles()`
+
+## Database Tables / جداول پایگاه داده
+
+### page_permissions
+- `page_path`: Path to the page (e.g., 'admin/users/index.php')
+- `page_name`: Display name for the page
+- `required_roles`: JSON array of allowed roles
+- `description`: Page description
+
+### individual_access
+- `page_path`: Path to the page
+- `user_id`: ID of user with individual access
+- `granted_by`: ID of user who granted access
+- `expires_at`: Optional expiration date
+- `is_active`: Whether access is currently active
+
+### roles
+- `id`: Primary key
+- `name`: Role name (used in access control)
+- `display_name`: Human-readable role name
+- `description`: Role description
+- `color`: Role color for UI
+- `permissions`: JSON array of permissions
+- `can_manage_users`: Boolean flag
+- `can_manage_aircraft`: Boolean flag
+- `can_manage_personnel`: Boolean flag
+- `can_manage_fleet`: Boolean flag
+- `can_view_reports`: Boolean flag
+- `can_manage_system`: Boolean flag
+- `can_manage_roles`: Boolean flag
+- `is_system_role`: Whether role is system-defined
+- `is_active`: Whether role is active
+
+### users
+- `id`: Primary key
+- `role_id`: Foreign key to roles table
+- Other user fields...
+
+## Testing Access Control / تست کنترل دسترسی
+
+### Test Script Example / مثال اسکریپت تست:
+
+```php
+<?php
+require_once 'config.php';
+
+// Test different user roles
+$testUsers = [
+    ['id' => 1, 'role' => 'admin', 'name' => 'Admin User'],
+    ['id' => 67, 'role' => 'employee', 'name' => 'Employee User']
+];
+
+$testPages = [
+    'admin/users/index.php',
+    'admin/users/add.php',
+    'admin/users/edit.php'
+];
+
+foreach ($testUsers as $testUser) {
+    echo "Testing user: {$testUser['name']} (Role: {$testUser['role']})\n";
+    
+    // Simulate session
+    $_SESSION['user_id'] = $testUser['id'];
+    $_SESSION['role'] = $testUser['role'];
+    
+    foreach ($testPages as $page) {
+        $hasAccess = checkPageAccessEnhanced($page);
+        echo "  - $page: " . ($hasAccess ? 'ALLOWED' : 'DENIED') . "\n";
+    }
+    
+    echo "\n";
+}
+?>
+```
+
+## Best Practices / بهترین روش‌ها
+
+1. **Always use `checkPageAccessWithRedirect()`** for page access control
+2. **Use `checkPageAccessEnhanced()`** only for conditional logic or APIs
+3. **Never use `hasPageAccess()`** for page protection (ignores individual access)
+4. **Test access control** after making changes
+5. **Use `roles` table for role management** - avoid using `users.role` ENUM
+6. **Use `getAllRolesFromTable()`** instead of `getAllRoles()`
+7. **Use `role_id` in users table** instead of `role` field
+8. **Use individual access sparingly** - prefer role-based access when possible
+
+## Sidebar Structure / ساختار Sidebar
+
+### Fleet Management Hierarchy / سلسله مراتب مدیریت ناوگان:
+```
+Fleet Management
+├── Aircraft
+├── Routes
+├── Stations
+├── Delay Codes
+├── ETL Report
+└── HandOver
+
+Flight Management
+├── Flight Manager
+├── Crew Scheduling
+├── Flight Monitoring
+├── Flight Time
+├── FDP Calculation
+├── Crew List
+├── Journey Log
+└── METAR/TAFOR
+
+Flight Load
+└── All Tickets
+
+E-Lib
+└── Electronic Library
+
+EFB
+└── Electronic Flight Bag
+```
+
+### Auto-Open Logic / منطق باز شدن خودکار:
+- **Fleet Menu**: Opens when on fleet pages
+- **Flight Menu**: Opens when on flights, crew, operations pages
+- **Users Menu**: Opens when on users, roles, personnel_recency pages
+- **Flight Load Menu**: Opens when on flight_load pages
+- **Settings Menu**: Opens when on home_base, safety_reports, odb pages
+
+## Troubleshooting / عیب‌یابی
+
+### User can't access page despite having correct role:
+1. Check if page permission exists in `page_permissions` table
+2. Verify role name matches exactly in `roles` table
+3. Check if `users.role_id` matches `roles.id`
+4. Check if individual access is overriding role access
+5. Ensure using correct access control function
+6. Verify `getCurrentUser()` returns correct `role_name`
+
+### Individual access not working:
+1. Verify `individual_access` table has correct records
+2. Check if access is expired (`expires_at` field)
+3. Ensure `is_active = 1` in individual access record
+4. Use `checkPageAccessEnhanced()` or `checkPageAccessWithRedirect()`
+
+### Access control inconsistent across pages:
+1. Standardize all pages to use `checkPageAccessWithRedirect()`
+2. Remove manual redirect logic
+3. Test all pages with different user roles
+
+### Issue 4: API Endpoints Not Registered
+**Problem / مشکل**: API endpoints like `flight_details.php` return "Unauthorized" even for authorized users.
+
+**Solution / راه‌حل**: 
+1. Register API endpoints in `page_permissions` table
+2. Use `checkPageAccessEnhanced()` for API endpoints
+3. Ensure all API files are included in permission system
+
+**Example API Endpoints that need registration:**
+- `admin/operations/flight_details.php` - Flight details modal API
+- `admin/api/acknowledge_odb.php` - ODB acknowledgment API
+- Other API endpoints as they are created
+
+Recency
+├── Personnel Recency
+└── Certificate
+
+---
+
+**Last Updated**: January 2025
+**Version**: 1.1
+**Author**: Rai-Fleet Development Team

@@ -1,0 +1,64 @@
+﻿Location Mehdi,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+LocationID,Address_Line1,Address_Line2,ALACallFrequency,,ALACallSign,ALACallType,,ALAChanges,ALACompanyAirportCategorisation,ALADateEdited,ALADateInspection,ALADescriptions,ALADistance,ALAElevation,ALAFuelNotes,ALAGPSWayPointAssign,ALAID,ALALastUpdatedByID,ALALastUpdatedByName,ALALightingFrequency,ALALightingNotes,ALALightingType,ALALocationIdentifier,ALANavaids,ALANightOperations,ALAObstacle_Hazards,ALAOperatingHours,ALARemarks_Restrictions,ALATrack,ALAType,ALAUpdateContact,ALAWindsock,BaseID,BaseManager,BaseName,BaseShortName,Country,FuelAllBatchNo,FuelAllContactAuth,FuelAllControllingAuth,FuelAllType,FuelMeasurement,FuelMinExpiry,FuelTotalQty,FuelTotalQtyRemaining,FuelUpdatedAt,GPS_Latitude,GPS_Longitude,GPSCoordinates,GPSWayPoint,HLS_ID,HLSBest_Approach_Direction,HLSBest_Departure_Direction,HLSCAContact,HLSCallFrequency,HLSCallSign,HLSCallType,HLSCAOperator,HLSDescription,HLSDimensions,HLSElevation,HLSGPSWayPoint,HLSGPSWayPointAssign,HLSLastUpdated,HLSLastUpdatedByID,HLSLastUpdatedByName,HLSLighitngControlledBy,HLSLighting,HLSLightingContact,HLSLightingFrequency,HLSLightingNotes,HLSNavaids,HLSNightOperations,HLSObstacles_Hazards,HLSOperatingHours,HLSPositionBearing,HLSPositionDirection,HLSPositionLocation,HLSRemark_Restrications,HLSSlope,HLSType,HLSUpdateContact,HLSWindsock,LocationName,LocationType,LocationTypeID,PostCode,SlotCoordination,State,SuburbCity
+1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1,,Rasht,RASH,,,,,,,,,,,37.32544444,49.60755556,"(N37 19.527, E49 36.453)",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Rasht,Base/Office,5,,,,
+2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,2,,Tehran,TEHR,Iran,,,,,,,,,,35.68977778,52.42861111,"(N35 41.387, E52 25.717)",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Tehran,Base/Office,5,,,,Tehran
+3,,,,,"ATIS ,TWR,GROUND",,,,,,,,SE 12 NM,22FT,JET A1 - 2 TRUCKS 20000 LTR & 1 TRUCK 25000 LTR,Regulator,2,14,Haniyeh Esmaeili,,,,OIBP,ILS-VOR/DME-CIRCLING VORLDME-NDB,FALSE,,02:30-16:30,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,27.38,52.73833333,"(N27 22.800, E52 44.300)",PGU,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,ASALOUYEH,ALA,3,,,BUZ,ASALOUYEH
+4,,,,,,,,,,,,,15NM FROM ESFAHAN,5058,"JET A-1,100 OCTANE",Regulator,6,80,Amin Rafiei Fallah,,,,OIFM,"RWY 25:NDB,ILS,VOR DME
+RWY 07:VOR DME,NDB,VOR,NDB DME",FALSE,,24H,,&deg;,Certified,,FALSE,,,,,Iran,,,,,,,,,,32.75,51.86333333,"(N32 45.000, E51 51.800)",IFN,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,ESFAHAN,ALA,3,,,IFN,ESFAHAN
+5,,,,,ATIS-TWR-GROUND,,,,,,,,SW 2.1 NM FM KISH,99 FT,"JET A1 - 1 TRUCK 45000 LTR (35LTR/SEC)
+1 TRUCK 25000 LTR(25LTR/SEC)
+2 TRUCK 20000 LTR (20LTR/SEC)
+1 TRUCK 8000 LTR(13LTR/SEC)",Regulator,7,14,Haniyeh Esmaeili,,,,OIBK,VOR-NDB,FALSE,,02:30-20:30,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,21.52666667,53.97833333,"(N21 31.600, E53 58.700)",KIH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,KISH,ALA,3,,,KIH,KISH
+6,,,,,ATIS-APP-GROUND,,,,,,,,W 5.3 NM ,4054 FT,"JET A1 - 2 TRUCKS 45000 LTR (2000LTR/MIN)
+20000 LTR (1000LTR/MIN)
+NO LIMITATION",Regulator,12,14,Haniyeh Esmaeili,,,,OIYY,ILS-VOR-NDB,FALSE,,H24,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,31.90666667,54.27666667,"(N31 54.400, E54 16.600)",AZD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,YAZD,ALA,3,,,AZD,YAZD
+7,,,,,,,,,,,,,"E,1.6 NM FROM MHD",3266 FT,"OIL TYPES:JET A1-100LL
+FACILITIES: JET A1: 4 TRUCKS 20000 LITRES,1 TRUCKS 60000 LITRES,25 LITRES/SEC
+2 TRUCKS 45000 LITRES,1 TRUCKS 80000 LITRES,45 LITRES/SEC
+1 TRUCK 25000 LITRES,18 LITRES/SEC
+100LL:AVAILABLE IN 200 LITRES BARREL",Regulator,11,115,Raheleh Davoodmanesh,,,,OIMM,ILS-VOR-NDB-NDB A,FALSE,,H24,,,Certified,,FALSE,,,,,Iran,,,,,,,,,,36.23333333,59.645,"(N36 14.000, E59 38.700)",MHD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,MASHHAD,ALA,3,,,MHD,MASHHAD
+8,,,,,ATIS - INFO,,,,,,,"FM 21 MARCH 22 SEP (02:30-13:30)
+FM 23 SEP 20 MARCH (03:00-13:30)",SW 7.5 NM,4170 FT,JET A1 - 2 TRUCK 20000 LTR ,Regulator,5,14,Haniyeh Esmaeili,,,,OIIP,VOR-NDB,FALSE,,02:30(03:00)-13:30,,,Certified,,FALSE,,,,,Iran,,,,,,,,,,35.78,50.82333333,"(N35 46.800, E50 49.400)",PYK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,KARAJ,ALA,3,,,PYK,KARAJ
+9,,,,,,,,,,,,,1.6 S NM FROM CITY,6723,"SUMMER PERIOD 0230-1430,WINTER PERIOD:HJ
+JET A-1",Regulator,13,80,Amin Rafiei Fallah,,,,OIFS,RWY 14 :VOR DME,FALSE,,O/R,,,Certified,,FALSE,,,,,Iran,,,,,,,,,,32.29666667,50.84166667,"(N32 17.800, E50 50.500)",CQD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,SHAHRKORD,ALA,3,,,CQD,SHAHRKORD
+10,,,,,,,,,,,,,"NNW,3.5 NM FROM ABD",8 FT,"OIL TYPE: JET A-1,H24
+2 TRUCKS,65000 LITERS,20 LITERS/SEC, NO LIMITATION",Regulator,3,115,Raheleh Davoodmanesh,,,SALS-PAPI-RTHL-REDL-RENL,OIAA,"ILS
+VOR
+NDB",FALSE,,H24,,&deg;,Certified,,FALSE,,,,,Iran,,,,,,,,,,30.37166667,48.22833333,"(N30 22.300, E48 13.700)",ABD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,ABADAN,ALA,3,,,ABD,ABADAN
+11,,,,,,,,,,,,,8KM SW OF CITY,3010,JET A-1,Regulator,9,80,Amin Rafiei Fallah,,,,OIMS,"RWY 09/27:VOR DME,NDB",FALSE,,"03:30-15:30 OUT OF THESE TIME,PPR",,,Certified,,FALSE,,,,,Iran,,,,,,,,,,36.16833333,57.59666667,"(N36 10.100, E57 35.800)",AFZ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,SABZEVAR,ALA,3,,,AFZ,SABZEVAR
+12,,,,,ATIS-TWR,,,,,,,,NE 9 NM FM SARI,37FT,"JET A1(JP4) - 1 TRUCK 47000LTR (42LTR/SEC)
+1 TRUCK 20000 LTR(25LTR/SEC)
+JP4:PROVIDED IN 18 LTR BARRELS WITH PPR.",Regulator,10,14,Haniyeh Esmaeili,,,,OINZ,ILS-VOR,FALSE,,03:30-20:30,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,36.635,53.19333333,"(N36 38.100, E53 11.600)",SRY,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,SARI,ALA,3,,,SRY,SARI
+13,,,,,TWR-GROUND-ATIS,,,,,,,,"SW,20NM FM TEHRAN",3305 FT,JET A1- 3 TRUCKS 45000LTR 45LTR/SEC- 2 TRUCKS 20000 LTR 40LTR/SEC - 2 TRUCKS 30000 LTR 40LTR/SEC -3 TRUCKS 60000 LTR 65 LTR/SEC,Regulator,14,14,Haniyeh Esmaeili,,,,OIIE,ILS-RNP-VOR,FALSE,,H24,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,35.41666667,51.15166667,"(N35 25.000, E51 9.100)",IKA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TEHRAN IKA,ALA,3,,,IKA,TEHRAN
+14,,,,,,,,,,,,,"NE,2NM FROM LAMERD",1336 FT,"JET A1,HJ
+2 TRUCKS,20000 LITRES,20 LITRES/SEC,NO LIMITATION",Regulator,8,115,Raheleh Davoodmanesh,,,"REDL,RENL,THRL,WBL,SWYL",OISR,VOR DME1-NDB DME1-CIRCLING NDB,FALSE,,,,&deg;,Certified,,FALSE,,,,,Iran,,,,,,,,,,27.37333333,53.18833333,"(N27 22.400, E53 11.300)",LFM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LAMERD,ALA,3,,,LFM,LAMERD
+15,,,,,ATIS-TWR-APP-GROUND,,,,,,,,NE 4.5 NM,22 FT,"JET A1 - 1 TRUCK 25000 LTR 
+3 TRUCKS 20000 LTR",Regulator,4,14,Haniyeh Esmaeili,,,,OIKB,ILS-NDB/ILS-VOR/DME-VOR-NDB,FALSE,,H24,,,Certified,,TRUE,,,,,Iran,,,,,,,,,,27.21833333,56.37833333,"(N27 13.100, E56 22.700)",BND,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,BANDAR ABBAS,ALA,3,,,BND,BANDAR ABBAS
+16,,,,,,,,,C,,,,5 NM FROM AHWAZ,65 FT,"JET A-1, 1 TRUCK 40000 LTRS,4 TRUCK 20000 LTRS ,20 LITRS / SEC",Regulator,1,80,Amin Rafiei Fallah,,,,OIAW,"RWY 12/30:ILS(Y,Z,X),VOR(YZX),NDB",FALSE,,24H,,&deg;,Certified,,FALSE,,,,,Iran,,,,,,,,,,31.33666667,48.76,"(N31 20.200, E48 45.600)",AWZ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,AHWAZ,ALA,3,,,AWZ,AHWAZ
+17,,,,,,,,,,,,,6 KM S CNTR OF  TAS,1417 FT,"H24 TYPE:  TC-1  - TS-1 -    JETA1   -
+FACILITY : AVBL WITH LIMITATION",Regulator,23,14,Haniyeh Esmaeili,,,,UTTT,ILS(I)-ILS(II)-VOR/DME-CIRCLING,FALSE,,H24,,,Certified,,FALSE,,,,,Uzbekistan,,,,,,,,,,41.25666667,69.28166667,"(N41 15.400, E69 16.900)",TAS,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TASHKENT,ALA,3,,,UZB,TASHKENT
+18,,,,,,,,,,,,,5KM N OF CITY,285 FT,24H AND JET A-1AND AVAILABLE WITHOUT LIMIT,Regulator,24,80,Amin Rafiei Fallah,,,,UTAK,ILS/VOR/NDB,FALSE,,24H,,,Certified,,FALSE,,,,,Turkmenistan,,,,,,,,,,40.06333333,53.00666667,"(N40 3.800, E53 0.400)",KRW,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TUKMENBASHI,ALA,3,,,KRW,TURKMENBASHI
+19,,,,,,,,,,,,,10 KM WEST CITY,2838,24H AND JET A-1,Regulator,22,80,Amin Rafiei Fallah,,,,UDYZ,RNP-ILS DME-VOR DME,FALSE,,24H,,,Certified,,FALSE,,,,,Armenia,,,,,,,,,,40.14666667,44.39666667,"(N40 8.800, E44 23.800)",EVN,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,YEREVAN,ALA,3,,,EVN,YEREVAN
+20,,,,,,,,,,,,,,5000 FT,"JET A-1,1 TRUCK 22000 LTRS AND FUELIING AT 0600 TO 1800 Z",Regulator,15,80,Amin Rafiei Fallah,,,,UDSG,ILS/RNP/VOR DME,FALSE,,0600 TO 1800 Z,,,Certified,,FALSE,,,,,Armenia,,,,,,,,,,40.75,43.86,"(N40 45.000, E43 51.600)",LWN,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,GYUMRI,ALA,3,,,LWN,GYUMRI
+21,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Kazakhstan,,,,,,,,,,43.86,51.09,"(N43 51.600, E51 5.400)",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,AKTAU,ALA,3,,,SCO,AKTAU
+22,,,,,,,,,,,,,8 KM S CENTER OF ASF,-65FT,H24 - TYPE:TC1(PT)/TS1(RT)- WITHOUT LIMITATION TZA-40 TZA-10,Regulator,16,14,Haniyeh Esmaeili,,,,URWA,ILS-GLS-RNP-VOR-NDB,FALSE,,H24,,&deg;,Certified,,FALSE,,,,,Russia,,,,,,,,,,46.28333333,48.00666667,"(N46 17.000, E48 0.400)",ASF,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,ASTRAKHAN,ALA,3,,,ASF,ASTRAKHAN
+23,,,,,,,,,,,,,6.5 KM S FM KASPIYSK,16 FT,"H24
+TYPE :  TC-1   -  TS-1 
+FACILITY: (T3-22)(T3A-30)(TZ-22)(TZA-30)",Regulator,21,14,Haniyeh Esmaeili,,,,URML,ILS-GLS-RNP-VOR-NDB,FALSE,,H24,,&deg;,Certified,,FALSE,,,,,Russia,,,,,,,,,,42.81666667,47.65166667,"(N42 49.000, E47 39.100)",MCX,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,MAKHACHKALA,ALA,3,,,MCX,MAKHACHKALA
+24,,,,,,,,,,,,,S OUTSKIRTS OF DYU,2569 FT,"H24
+JET A1- AVBL WITHOUT LIMITATION",Regulator,17,14,Haniyeh Esmaeili,,,,UTDD,ILS-RNP-NDB,FALSE,,H24,,&deg;,Certified,,FALSE,,,,,Tadjikistan,,,,,,,,,,38.54333333,68.825,"(N38 32.600, E68 49.500)",DYU,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,DUSHANBE,ALA,3,,,DYU,DUSHANBE
+25,,,,,,,,,,,,,10 KM SE FM LBD,1424 FT,"H24
+TC-1 - TS-1(JET A1)- AVBL WITHOUT LIMITATION",Regulator,19,14,Haniyeh Esmaeili,,,,UTDL,ILS-RNP-NDB,FALSE,,H24,,&deg;,Certified,,FALSE,,,,,Tadjikistan,,,,,,,,,,40.215,69.695,"(N40 12.900, E69 41.700)",LBD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,KHUJAND,ALA,3,,,LBD,KHUJAND
+26,,,,,,,,,,,,,6 KM FROM CITY,2224,"FUELIING:24H, FUEL TYPE:TS-1 OR JET A-1
+",Regulator,20,80,Amin Rafiei Fallah,,,,UTSS,ILS/ILS DME /VOR DME/VPT,FALSE,,24H,,,Certified,,FALSE,,,,,Uzbekistan,,,,,,,,,,39.70166667,66.98166667,"(N39 42.100, E66 58.900)",SKD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,SAMARKAND,ALA,3,,,SKD,SAMARKAND
+27,,,,,,,,,,,,,SW OF FERGANA CITY,2052 FT,TS-1(EQUIVALENT JET A1)-  TC-1  - AVLB WITH LIMITATION,Regulator,18,14,Haniyeh Esmaeili,,,,UTFF,ILS-NDB,FALSE,,IN OPR HOUR,,,Certified,,FALSE,,,,,Uzbekistan,,,,,,,,,,40.35833333,71.745,"(N40 21.500, E71 44.700)",FEG,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,FERGANA,ALA,3,,,FEG,FERGANA
+28,,,,,,,,,,,,,W OF TEHRAN,3956 FT ,"H24
+TYPE: JET A1 - 100LL -JP4
+FACILITY: (JETA1: 20000 LTR TO 80000 LTR {800-1200LTR/MIN})
+(100LL: AVBL IN 200 LTR BARREL)
+(JP4: 1 TRUCK 6000 LTR {500-800LTR/MIN})",Regulator,25,14,Haniyeh Esmaeili,,,,OIII,ILS-VOR,FALSE,,H24,INTR : IN BELOW  RWY CHART MEANS (INTERSECTION),&deg;,Certified,,TRUE,,,,,Iran,,,,,,,,,,35.69166667,51.325,"(N35 41.500, E51 19.500)",THR,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TEHRAN/MEHRABAD,ALA,3,,,THR,TEHRAN
+29,,,,,,,,,,,,,NE 2NM FROM CITY,-37,"JET A-1,2TRUCKS 20000 LTRS,1 TRUCK 45000 LTRS,40 LTR/SEC AND NO LIMIATION",Regulator,26,80,Amin Rafiei Fallah,,,,OIGG,"RWY 27:VOR , ILS
+RWY 09:VOR",FALSE,,0300 TO 1700 Z,,&deg;,Certified,,TRUE,,,,,Iran,,,,,,,,,,37.32777778,49.61944444,"(N37 19.667, E49 37.167)",RAS,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,OIGG,ALA,3,,,RAS,RASHT
+30,,,,,,,,,,,,,W 11KM FROM CITY,5732,"JET A-1 AND 2 TRUCKS 20000,1 TRUCK 45000 LTRS,1 TRUCK 25000",Regulator,27,80,Amin Rafiei Fallah,,,,OIKK,RWY 16/34:VOR,FALSE,,24H,,&deg;,Certified,,TRUE,,,,,Iran,,,,,,,,,,30.28055556,56.95277778,"(N30 16.833, E56 57.167)",KER,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,KERMAN,ALA,3,,,KER,KERMAN
+31,,,,,,,,,,,,,8 KM FROM CITY ,-28,"JET A-1, REFULING 0345-SS OUT OF THIS TIME O/R",Regulator,28,80,Amin Rafiei Fallah,,,,OING,RWY13:ILS-VOR,TRUE,,0345-SS,,&deg;,Certified,,FALSE,,,,,Iran,,,,,,,,,,36.91944444,54.40833333,"(N36 55.167, E54 24.500)",GBT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,GORGAN,ALA,3,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

@@ -1,0 +1,69 @@
+زیر ساخت اصلی پروژه
+نام پروژه - و نام شرکت در config.php
+برنامه به صورت script php بدون MVC با PHP 8.2.12
+mysql  Ver 15.1 Distrib 10.4.32-MariaDB
+tailwind باید در پوشه /assets/js/tailwind.js
+از Additional CSS استفاده نکن
+fontawsome: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css
+اگر database , table, data خواستی بزاری sql را در پوشه database قرار بده من اجرا کنم
+این یک ابزار برای مدیریت Fleet های Raimon Airways است با نام Raimon Fleet
+تمام صفحات باید انگلیسی به Roboto google font باشد
+همه صفحات, sidebar و ... باید responsive برای موبایل و tablet و desktop باشد
+favicon بزار
+پس از login باید session کاربر در sidebar.php که در همه صفحات صدا زده میشود load شود
+سایت بعدا قرار است روز cpanel بالا باشد
+پروژه در http://localhost/ وجود دارد 
+
+SMS API Configuration:
+- SMS Provider: SMS.ir
+- API URL: https://api.sms.ir/v1/send
+- Username: raimon
+- Password: LLSj3yLhOBVxP6fb7nBzRbeqmCXgnGp3NB2f2Y7aPWKWxq4n
+- Line Number: 3000212480
+
+SMS Usage Example:
+<?php
+require_once 'config.php';
+
+// Send SMS
+$result = sendSMS('09305586188', 'Hello Test Message');
+
+if ($result['success']) {
+    echo "SMS sent successfully!";
+} else {
+    echo "SMS failed: " . $result['response'];
+}
+?>
+
+cURL Example:
+curl --location --request GET 'https://api.sms.ir/v1/send?username=raimon&password=LLSj3yLhOBVxP6fb7nBzRbeqmCXgnGp3NB2f2Y7aPWKWxq4n&line=3000212480&mobile=09305586188&text=سلام تست'
+
+WhatsApp API Configuration:
+- API URL: http://5.252.227.233:3000/send
+- Method: POST
+- Content-Type: application/json
+
+WhatsApp Usage Example:
+<?php
+require_once 'config.php';
+
+// Send WhatsApp message to single number
+$result = sendWhatsApp('989129382810', 'Hello World!');
+
+// Send WhatsApp message to multiple numbers
+$result = sendWhatsApp(['989129382810', '989123456789'], 'Hello Everyone!');
+
+if ($result['success']) {
+    echo "WhatsApp message sent successfully!";
+} else {
+    echo "WhatsApp message failed: " . $result['response'];
+}
+?>
+
+WhatsApp cURL Example:
+curl --location --request POST 'http://5.252.227.233:3000/send' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "targetNumber": ["989129382810"],
+  "textMessage": "سلام دنیا!"
+}'

@@ -1,0 +1,34 @@
+[
+    {
+        "timestamp_utc": "2025-11-10T08:36:01Z",
+        "timestamp_local": "2025-11-10 12:06:01",
+        "request_id": "bdf6073bed26ab2d63f163b25430ae1d",
+        "client_ip": "91.99.141.209",
+        "content_type": "multipart/form-data",
+        "format": "string",
+        "raw_data": "test123",
+        "parsed_data": {
+            "binfo": {
+                "FLN": "TEST",
+                "DTE": "2025-11-10",
+                "RAW_DATA": "test123"
+            }
+        },
+        "flight_info": {
+            "flight_number": "TEST",
+            "date": "2025-11-10",
+            "operator": null,
+            "unit": null,
+            "eta": null,
+            "etd": null,
+            "aircraft_reg": null,
+            "route": null
+        },
+        "record_id": 4,
+        "saved_to_db": true,
+        "all_post_data": {
+            "plan": "test123",
+            "route": "oiii-oigg"
+        }
+    }
+]

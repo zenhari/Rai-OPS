@@ -1,0 +1,11 @@
+قوانین طراحی صفحات
+همه صفحات بر اساس تنظیمات browser dark mode, light mode طراحی شوند
+تمام صفحات باید انگلیسی به Roboto google font باشد
+همه صفحات, sidebar و ... باید responsive برای موبایل و tablet و desktop باشد
+tailwind باید در پوشه /assets/js/tailwind.js
+از Additional CSS استفاده نکن
+fontawsome: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css
+از طیف رنگ آبی و خاکستری و مشکی و alert های پیش فرض tailwind استفاده کن
+design theme: @theme.png
+هر چیزی میخوات حذف شود باید با تایید مودال انجام بشه
+فقط css , ها در @sidebar.php باشند و در صفحه لینک به css, js نشه که confilict نشه

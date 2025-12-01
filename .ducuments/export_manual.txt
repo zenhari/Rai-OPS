@@ -1,0 +1,139 @@
+روش پیشنهادی (دو فایل جدا: اول جدول‌ها، بعد ویوها)
+1) خروجی فقطِ جدول‌ها
+
+Export method: Custom
+
+Format: SQL
+
+Tables: فقط جدول‌ها را انتخاب کنید (همه بجز مواردی که اسمشان با v_ شروع می‌شود). از فهرست شما یعنی:
+aircraft, efb_records, employees, flights, ftl_fdp_max_lookup, home_base, individual_access, journey_log_entries, odb, odb_acknowledgments, odb_notifications, page_permissions, pilot_journey_logs, recencypersonnel, roles, routes, safety_reports, stations, tickets, users
+
+Output: Save output to a file (فایل را مثلاً raimon_fleet_tables.sql نام بگذارید)
+
+Format-specific options:
+
+✅ Enclose export in a transaction
+
+✅ Disable foreign key checks
+
+⛔ Export views as tables (خاموش باشد)
+
+Object creation options:
+
+✅ Add DROP TABLE / VIEW ... (مفید است)
+
+✅ Add CREATE TABLE statement
+
+(اختیاری) IF NOT EXISTS
+
+⛔ Add CREATE VIEW statement (خاموش)
+
+⛔ Use simple view export (خاموش)
+
+✅ Enclose table and column names with backquotes
+
+Data creation options:
+
+(پیشنهادی) include column names in every INSERT statement
+
+(پیشنهادی) insert multiple rows in every INSERT statement
+
+خروجی بگیرید و اول از همه همین فایل را ایمپورت کنید.
+
+2) خروجی فقطِ ویوها
+
+Export method: Custom
+
+Format: SQL
+
+Tables: فقط ویوها را انتخاب کنید (موارد با پیشوند v_):
+v_duty_rolling_cmd, v_duty_rolling_crew, v_fdp_compliance_cmd, v_fdp_compliance_crew, v_fdp_daily_cmd, v_fdp_daily_cmd_lookup, v_fdp_daily_crew, v_flights_derived, v_flight_journey_log, v_flight_rolling_cmd, v_flight_rolling_crew, v_ftl_violations_cmd
+
+Output: Save output to a file (مثلاً raimon_fleet_views.sql)
+
+Format-specific options:
+
+✅ Add CREATE VIEW statement
+
+✅ OR REPLACE view
+
+✅ Exclude definition of current user (برای حذف DEFINER و جلوگیری از خطای دسترسی)
+
+⛔ Use simple view export (خاموش بگذارید؛ این گزینه معمولاً Stand-in تولید می‌کند)
+
+⛔ Export views as tables (حتماً خاموش)
+
+Object creation options:
+
+✅ Add DROP TABLE / VIEW ... (تا اگر قبلاً چیزی بود حذف شود؛ DROP VIEW را ایجاد می‌کند)
+
+✅ Enclose table and column names with backquotes
+
+خروجی بگیرید و بعد از ایمپورت کاملِ فایل جدول‌ها، این فایل را ایمپورت کنید.
+
+مزیت این روش: Stand-in خالی (CREATE TABLE view_name ()) اصلاً تولید نمی‌شود؛ بنابراین خطای «A symbol name was expected … At least one column definition …» و «Unknown column … در SELECT ویو» ناشی از ترتیب اشتباه، رخ نمی‌دهد.
+
+روش جایگزین (یک فایلِ واحد)
+
+اگر اصرار دارید یک فایل داشته باشید:
+
+Export method: Custom
+
+Format: SQL
+
+Tables: همه (جدول‌ها + ویوها)
+
+Format-specific options:
+
+✅ Add CREATE VIEW
+
+✅ OR REPLACE view
+
+✅ Exclude definition of current user
+
+⛔ Export views as tables
+
+⛔ Use simple view export (برای جلوگیری از Stand-in)
+
+✅ Enclose export in a transaction
+
+✅ Disable foreign key checks
+
+Object creation options:
+
+✅ Add DROP TABLE / VIEW …
+
+توجه: phpMyAdmin در بعضی نسخه‌ها باز هم Stand-in کمکی می‌گذارد. اگر در خروجی‌تان خطوطی مثل
+-- Stand-in structure for view ...
+و CREATE TABLE v_xxx ( ); دیدید، آن بخش‌ها را حذف یا کامنت کنید، یا تعریف اصلی VIEW را به انتهای فایل منتقل کنید.
+
+نکته‌های ایمپورت
+
+قبل از ایمپورت فایل ویوها، اجرا کردن این بلاک مفید است:
+
+SET @OLD_FK_CHECKS=@@FOREIGN_KEY_CHECKS; 
+SET FOREIGN_KEY_CHECKS=0;
+
+-- حذف ویوهای قبلی (در صورت وجود)
+DROP VIEW IF EXISTS 
+  `v_duty_rolling_cmd`,
+  `v_duty_rolling_crew`,
+  `v_fdp_compliance_cmd`,
+  `v_fdp_compliance_crew`,
+  `v_fdp_daily_cmd`,
+  `v_fdp_daily_cmd_lookup`,
+  `v_fdp_daily_crew`,
+  `v_flights_derived`,
+  `v_flight_journey_log`,
+  `v_flight_rolling_cmd`,
+  `v_flight_rolling_crew`,
+  `v_ftl_violations_cmd`;
+
+SET FOREIGN_KEY_CHECKS=@OLD_FK_CHECKS;
+
+
+و سپس فایل views.sql خودتان را ایمپورت کنید.
+
+اگر باز هم #1054 (Unknown column) دیدید
+
+این خطا دیگر ناشی از نبودن جدول‌ها نیست؛ یعنی در متن CREATE VIEW ... AS SELECT ...، نام ستون/جدول با اسکیما شما نمی‌خواند (مثلاً a.CrewID ولی ستون واقعی crew_id است). در این صورت، متن ویو را با نام ستون‌های فعلی‌تان تطبیق دهید یا اینجا همین بخش از CREATE VIEW و CREATE TABLE‌های مرتبط را بفرستید تا من سریع نسخه‌ی اصلاح‌شده‌ی ویو را برایتان بنویسم.

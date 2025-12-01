@@ -1,0 +1,32 @@
+-- Home Base Table
+CREATE TABLE `home_base` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `published` tinyint(1) DEFAULT 0,
+  `publish_no` varchar(50) DEFAULT NULL,
+  `pending_changes` text DEFAULT NULL,
+  `last_survey` date DEFAULT NULL,
+  `location_name` varchar(255) NOT NULL,
+  `short_name` varchar(50) DEFAULT NULL,
+  `timezone` varchar(100) DEFAULT NULL,
+  `site_properties` text DEFAULT NULL,
+  `gps_coordinates` varchar(100) DEFAULT NULL,
+  `latitude` decimal(10, 8) DEFAULT NULL,
+  `longitude` decimal(11, 8) DEFAULT NULL,
+  `magnetic_variation` decimal(5, 2) DEFAULT NULL,
+  `address_line_1` varchar(255) DEFAULT NULL,
+  `address_line_2` varchar(255) DEFAULT NULL,
+  `city_suburb` varchar(100) DEFAULT NULL,
+  `state` varchar(100) DEFAULT NULL,
+  `postcode` varchar(20) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `owned_by_base` varchar(255) DEFAULT NULL,
+  `slot_coordination` text DEFAULT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_published` (`published`),
+  KEY `idx_status` (`status`),
+  KEY `idx_location_name` (`location_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Home Base information for Raimon Fleet Management System';
+
