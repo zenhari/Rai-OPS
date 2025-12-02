@@ -179,12 +179,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Log the data being sent for debugging
             error_log("updateFlight called for flight ID $flight_id with data: " . json_encode($data));
             
+            // Get old flight data for comparison before update
+            $oldFlightData = getFlightById($flight_id);
+            
             // Clear any previous error from session
             if (isset($_SESSION['update_flight_error'])) {
                 unset($_SESSION['update_flight_error']);
             }
             
             if (updateFlight($flight_id, $data)) {
+                // Log changes after successful update
+                $newFlightData = getFlightById($flight_id);
+                logFlightChanges($flight_id, $oldFlightData, $newFlightData, $current_user);
+                
                 $message = 'Flight updated successfully.';
                 // Refresh flight data
                 $flight = getFlightById($flight_id);

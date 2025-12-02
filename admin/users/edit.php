@@ -120,6 +120,84 @@ if (!empty($user['national_id'])) {
     $personnel_docs = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+// Endorsement helper functions (if not defined in config.php)
+if (!function_exists('getUserEndorsements')) {
+    function getUserEndorsements($userId) {
+        try {
+            $db = getDBConnection();
+            $stmt = $db->prepare("SELECT * FROM user_endorsement WHERE user_id = ? ORDER BY aircraft_type, role_code");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Error getting user endorsements: " . $e->getMessage());
+            return [];
+        }
+    }
+}
+
+if (!function_exists('saveUserEndorsements')) {
+    function saveUserEndorsements($userId, $endorsements) {
+        try {
+            $db = getDBConnection();
+            $db->beginTransaction();
+            
+            // Delete existing endorsements for this user
+            $stmt = $db->prepare("DELETE FROM user_endorsement WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            
+            // Insert new endorsements
+            if (!empty($endorsements)) {
+                $stmt = $db->prepare("INSERT INTO user_endorsement (user_id, aircraft_type, role_code, role_type) VALUES (?, ?, ?, ?)");
+                foreach ($endorsements as $endorsement) {
+                    $stmt->execute([
+                        $userId,
+                        $endorsement['aircraft_type'],
+                        $endorsement['role_code'],
+                        $endorsement['role_type'] // 'cockpit' or 'cabin'
+                    ]);
+                }
+            }
+            
+            $db->commit();
+            return true;
+        } catch (Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            error_log("Error saving user endorsements: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('getAllCabinRoles')) {
+    function getAllCabinRoles() {
+        try {
+            $db = getDBConnection();
+            $stmt = $db->prepare("SELECT * FROM cabin_roles ORDER BY sort_order, label");
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Error getting cabin roles: " . $e->getMessage());
+            return [];
+        }
+    }
+}
+
+if (!function_exists('getAllCockpitRoles')) {
+    function getAllCockpitRoles() {
+        try {
+            $db = getDBConnection();
+            $stmt = $db->prepare("SELECT * FROM cockpit_roles ORDER BY sort_order, label");
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Error getting cockpit roles: " . $e->getMessage());
+            return [];
+        }
+    }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $action = $_POST['action'] ?? '';
@@ -367,6 +445,83 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $message_type = 'error';
             }
         }
+    } elseif ($action === 'save_endorsements') {
+        // Handle endorsement saving
+        if ($user['flight_crew'] == 1) {
+            $aircraft_type = trim($_POST['endorsement_aircraft_type'] ?? '');
+            $selected_roles = $_POST['endorsement_roles'] ?? [];
+            
+            if (!empty($aircraft_type)) {
+                // Get existing endorsements
+                $existing_endorsements = getUserEndorsements($user_id);
+                
+                // Filter out endorsements for the selected aircraft type
+                $other_endorsements = array_filter($existing_endorsements, function($e) use ($aircraft_type) {
+                    return $e['aircraft_type'] != $aircraft_type;
+                });
+                
+                // Build new endorsements array
+                $endorsements = [];
+                
+                // Add endorsements from other aircraft types
+                foreach ($other_endorsements as $endorsement) {
+                    $endorsements[] = [
+                        'aircraft_type' => $endorsement['aircraft_type'],
+                        'role_code' => $endorsement['role_code'],
+                        'role_type' => $endorsement['role_type']
+                    ];
+                }
+                
+                // Add new endorsements for selected aircraft type
+                foreach ($selected_roles as $role_data) {
+                    // Format: "type:code" (e.g., "cockpit:CPT" or "cabin:FA")
+                    if (strpos($role_data, ':') !== false) {
+                        list($role_type, $role_code) = explode(':', $role_data, 2);
+                        if (in_array($role_type, ['cockpit', 'cabin']) && !empty($role_code)) {
+                            $endorsements[] = [
+                                'aircraft_type' => $aircraft_type,
+                                'role_code' => $role_code,
+                                'role_type' => $role_type
+                            ];
+                        }
+                    }
+                }
+                
+                if (saveUserEndorsements($user_id, $endorsements)) {
+                    $message = 'Endorsements saved successfully.';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Failed to save endorsements.';
+                    $message_type = 'error';
+                }
+            } else {
+                $message = 'Please select an aircraft type.';
+                $message_type = 'error';
+            }
+        }
+    }
+}
+
+// Load endorsement data if user is flight crew
+$aircraft_types = [];
+$cabin_roles = [];
+$cockpit_roles = [];
+$existing_endorsements = [];
+$endorsements_by_aircraft = [];
+
+if ($user['flight_crew'] == 1) {
+    $aircraft_types = getAircraftTypes();
+    $cabin_roles = getAllCabinRoles();
+    $cockpit_roles = getAllCockpitRoles();
+    $existing_endorsements = getUserEndorsements($user_id);
+    
+    // Group existing endorsements by aircraft_type
+    foreach ($existing_endorsements as $endorsement) {
+        $aircraft = $endorsement['aircraft_type'];
+        if (!isset($endorsements_by_aircraft[$aircraft])) {
+            $endorsements_by_aircraft[$aircraft] = [];
+        }
+        $endorsements_by_aircraft[$aircraft][] = $endorsement['role_type'] . ':' . $endorsement['role_code'];
     }
 }
 ?>
@@ -1288,6 +1443,118 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                     </div>
 
+                    <!-- Endorsement Section (Only for Flight Crew) -->
+                    <?php if ($user['flight_crew'] == 1): ?>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-certificate mr-2"></i>Endorsement
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                Manage aircraft type endorsements and role assignments
+                            </p>
+                        </div>
+                        <div class="p-6">
+                            <form method="POST" id="endorsementForm" class="space-y-6">
+                                <input type="hidden" name="action" value="save_endorsements">
+                                
+                                <!-- Aircraft Type Selection -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Aircraft Type *
+                                    </label>
+                                    <select name="endorsement_aircraft_type" id="endorsement_aircraft_type" required
+                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                        <option value="">-- Select Aircraft Type --</option>
+                                        <?php 
+                                        $selected_aircraft = !empty($existing_endorsements) ? $existing_endorsements[0]['aircraft_type'] : '';
+                                        foreach ($aircraft_types as $aircraft_type): 
+                                        ?>
+                                            <option value="<?php echo htmlspecialchars($aircraft_type); ?>" 
+                                                    <?php echo $selected_aircraft == $aircraft_type ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($aircraft_type); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <!-- Role Selection (shown after aircraft type is selected) -->
+                                <div id="role_selection_container" style="<?php echo empty($selected_aircraft) ? 'display: none;' : ''; ?>">
+                                    <!-- Cockpit Roles -->
+                                    <div class="mb-6">
+                                        <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">
+                                            <i class="fas fa-plane mr-2"></i>Cockpit Roles
+                                        </h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <?php 
+                                            foreach ($cockpit_roles as $role): 
+                                                $role_key = 'cockpit:' . $role['code'];
+                                                $is_checked = false;
+                                                if (!empty($selected_aircraft) && isset($endorsements_by_aircraft[$selected_aircraft])) {
+                                                    $is_checked = in_array($role_key, $endorsements_by_aircraft[$selected_aircraft]);
+                                                }
+                                            ?>
+                                                <label class="flex items-center p-2 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                                                    <input type="checkbox" 
+                                                           name="endorsement_roles[]" 
+                                                           value="<?php echo htmlspecialchars($role_key); ?>"
+                                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                                                           <?php echo $is_checked ? 'checked' : ''; ?>>
+                                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                                        <strong><?php echo htmlspecialchars($role['code']); ?></strong>
+                                                        <?php if (!empty($role['label'])): ?>
+                                                            - <?php echo htmlspecialchars($role['label']); ?>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cabin Roles -->
+                                    <div>
+                                        <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">
+                                            <i class="fas fa-users mr-2"></i>Cabin Roles
+                                        </h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <?php 
+                                            foreach ($cabin_roles as $role): 
+                                                $role_key = 'cabin:' . $role['code'];
+                                                $is_checked = false;
+                                                if (!empty($selected_aircraft) && isset($endorsements_by_aircraft[$selected_aircraft])) {
+                                                    $is_checked = in_array($role_key, $endorsements_by_aircraft[$selected_aircraft]);
+                                                }
+                                            ?>
+                                                <label class="flex items-center p-2 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                                                    <input type="checkbox" 
+                                                           name="endorsement_roles[]" 
+                                                           value="<?php echo htmlspecialchars($role_key); ?>"
+                                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                                                           <?php echo $is_checked ? 'checked' : ''; ?>>
+                                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                                        <strong><?php echo htmlspecialchars($role['code']); ?></strong>
+                                                        <?php if (!empty($role['label'])): ?>
+                                                            - <?php echo htmlspecialchars($role['label']); ?>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+
+                                    <!-- Save Button for Endorsements -->
+                                    <div class="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                                        <button type="submit"
+                                                class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 transition-colors duration-200">
+                                            <i class="fas fa-save mr-2"></i>Save Endorsements
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <!-- Form Actions -->
                     <div class="flex justify-end space-x-4">
                         <a href="index.php" 
@@ -1526,6 +1793,50 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 closeImageModal();
             }
         });
+
+        // Endorsement functionality
+        <?php if ($user['flight_crew'] == 1): ?>
+        const endorsementAircraftType = document.getElementById('endorsement_aircraft_type');
+        const roleSelectionContainer = document.getElementById('role_selection_container');
+        
+        // Endorsements data from PHP
+        const endorsementsByAircraft = <?php echo json_encode($endorsements_by_aircraft ?? []); ?>;
+        
+        if (endorsementAircraftType && roleSelectionContainer) {
+            // Show/hide role selection based on aircraft type selection
+            function updateRoleSelection() {
+                const selectedAircraft = endorsementAircraftType.value;
+                
+                if (selectedAircraft) {
+                    roleSelectionContainer.style.display = 'block';
+                    
+                    // Get existing endorsements for this aircraft type
+                    const existingRoles = endorsementsByAircraft[selectedAircraft] || [];
+                    
+                    // Update all checkboxes
+                    const checkboxes = roleSelectionContainer.querySelectorAll('input[type="checkbox"][name="endorsement_roles[]"]');
+                    checkboxes.forEach(function(checkbox) {
+                        const roleValue = checkbox.value;
+                        checkbox.checked = existingRoles.includes(roleValue);
+                    });
+                } else {
+                    roleSelectionContainer.style.display = 'none';
+                    
+                    // Uncheck all checkboxes
+                    const checkboxes = roleSelectionContainer.querySelectorAll('input[type="checkbox"][name="endorsement_roles[]"]');
+                    checkboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                }
+            }
+            
+            // Listen for aircraft type changes
+            endorsementAircraftType.addEventListener('change', updateRoleSelection);
+            
+            // Initialize on page load
+            updateRoleSelection();
+        }
+        <?php endif; ?>
     </script>
 </body>
 </html>

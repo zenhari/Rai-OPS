@@ -705,6 +705,26 @@ function getAbsolutePath($path) {
                     </span>
                 <?php endif; ?>
             </a>
+
+            <!-- Full Log -->
+            <?php if (checkPageAccessEnhanced('admin/full_log/flight_log.php')): ?>
+            <div class="space-y-1">
+                <button id="full-log-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
+                    <div class="flex items-center">
+                        <i class="fas fa-history mr-3 text-lg"></i>
+                        Full Log
+                    </div>
+                    <i id="full-log-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
+                </button>
+                <div id="full-log-menu" class="hidden pl-6 space-y-1">
+                    <a href="<?php echo getAbsolutePath('admin/full_log/flight_log.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'full_log' && $current_page == 'flight_log') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-plane mr-3 text-sm"></i>
+                        Flight Log
+                    </a>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </nav>
 
@@ -815,6 +835,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const rosterMenu = document.getElementById('roster-menu');
     const rosterArrow = document.getElementById('roster-arrow');
 
+    const fullLogToggle = document.getElementById('full-log-toggle');
+    const fullLogMenu = document.getElementById('full-log-menu');
+    const fullLogArrow = document.getElementById('full-log-arrow');
+
     function toggleMenu(menu, arrow) {
         // Close all other menus first
         closeAllMenus();
@@ -900,10 +924,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (fullLogToggle) {
+        fullLogToggle.addEventListener('click', () => toggleMenu(fullLogMenu, fullLogArrow));
+    }
+
     // Function to close all menus
     function closeAllMenus() {
-        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu];
-        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow];
+        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, fullLogMenu];
+        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, fullLogArrow];
         
         allMenus.forEach(menu => {
             if (menu) menu.classList.add('hidden');
@@ -987,6 +1015,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-open Price menu if on pricing pages
     else if (window.location.pathname.indexOf('/admin/pricing/') !== -1) {
         openMenu(priceMenu, priceArrow);
+    }
+    
+    // Auto-open Full Log menu if on full log pages
+    else if (currentDir === 'full_log') {
+        openMenu(fullLogMenu, fullLogArrow);
     }
 
     // Close sidebar when clicking on a link (mobile)

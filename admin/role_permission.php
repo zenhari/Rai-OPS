@@ -864,6 +864,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $message = 'Contacts page permission already exists.';
             }
             break;
+
+        case 'add_flight_log_page':
+            $pagePath = 'admin/full_log/flight_log.php';
+            $pageName = 'Flight Log';
+            $requiredRoles = ['admin'];
+            $description = 'View all flight change logs and history with user information and field changes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Flight Log page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Flight Log page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Flight Log page permission already exists.';
+            }
+            break;
             
     }
 }
@@ -1632,6 +1649,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addContactsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-address-book mr-2"></i>Contacts
+                        </button>
+                        <button onclick="addFlightLogPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-history mr-2"></i>Flight Log
                         </button>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700 my-2 md:col-span-2"></div>
@@ -2751,6 +2771,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_contacts_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addFlightLogPage() {
+            if (confirm('Add Flight Log page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_flight_log_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

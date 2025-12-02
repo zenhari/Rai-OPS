@@ -2557,6 +2557,98 @@ function updateFlight($id, $data) {
     }
 }
 
+/**
+ * Log flight changes to JSON file
+ * @param int $flightId Flight ID
+ * @param array $oldData Original flight data
+ * @param array $newData Updated flight data
+ * @param array $user Current user data
+ * @return bool Success status
+ */
+function logFlightChanges($flightId, $oldData, $newData, $user) {
+    // Compare old and new data to find changes
+    $changes = [];
+    $changedFields = [];
+    
+    foreach ($newData as $field => $newValue) {
+        $oldValue = $oldData[$field] ?? null;
+        
+        // Normalize values for comparison (handle null, empty string, etc.)
+        $oldNormalized = ($oldValue === null || $oldValue === '') ? null : $oldValue;
+        $newNormalized = ($newValue === null || $newValue === '') ? null : $newValue;
+        
+        // Check if value actually changed
+        if ($oldNormalized != $newNormalized) {
+            $changes[$field] = [
+                'old' => $oldValue,
+                'new' => $newValue
+            ];
+            $changedFields[] = $field;
+        }
+    }
+    
+    // Only log if there are actual changes
+    if (empty($changes)) {
+        return true;
+    }
+    
+    // Prepare log entry
+    $logEntry = [
+        'id' => uniqid('log_', true),
+        'flight_id' => $flightId,
+        'timestamp' => date('Y-m-d H:i:s'),
+        'user' => [
+            'id' => $user['id'] ?? null,
+            'name' => trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')),
+            'username' => $user['username'] ?? null,
+            'role' => $user['role'] ?? null
+        ],
+        'changed_fields' => $changedFields,
+        'changes' => $changes
+    ];
+    
+    // Ensure log directory exists
+    $logDir = __DIR__ . '/full_log';
+    if (!is_dir($logDir)) {
+        if (!mkdir($logDir, 0755, true)) {
+            error_log("Failed to create log directory: $logDir");
+            return false;
+        }
+    }
+    
+    // Log file path
+    $logFile = $logDir . '/flight_log.json';
+    
+    // Read existing logs
+    $logs = [];
+    if (file_exists($logFile)) {
+        $content = file_get_contents($logFile);
+        if (!empty($content)) {
+            $logs = json_decode($content, true);
+            if (!is_array($logs)) {
+                $logs = [];
+            }
+        }
+    }
+    
+    // Add new log entry at the beginning
+    array_unshift($logs, $logEntry);
+    
+    // Keep only last 10000 entries to prevent file from growing too large
+    if (count($logs) > 10000) {
+        $logs = array_slice($logs, 0, 10000);
+    }
+    
+    // Write back to file
+    $json = json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    if (file_put_contents($logFile, $json) === false) {
+        error_log("Failed to write flight log: $logFile");
+        return false;
+    }
+    
+    return true;
+}
+
 function createFlight($data) {
     $db = getDBConnection();
     
@@ -4026,6 +4118,70 @@ function getAllCabinRoles() {
     } catch (Exception $e) {
         error_log("Error getting cabin roles: " . $e->getMessage());
         return [];
+    }
+}
+
+/**
+ * Get unique aircraft types from aircraft table
+ */
+function getUniqueAircraftTypes() {
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("SELECT DISTINCT aircraft_type FROM aircraft WHERE status = 'active' AND aircraft_type IS NOT NULL AND aircraft_type != '' ORDER BY aircraft_type");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {
+        error_log("Error getting unique aircraft types: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Get user endorsements
+ */
+function getUserEndorsements($userId) {
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("SELECT * FROM user_endorsement WHERE user_id = ? ORDER BY aircraft_type, role_code");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Error getting user endorsements: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Save user endorsements (delete old and insert new)
+ */
+function saveUserEndorsements($userId, $endorsements) {
+    try {
+        $db = getDBConnection();
+        $db->beginTransaction();
+        
+        // Delete existing endorsements for this user
+        $stmt = $db->prepare("DELETE FROM user_endorsement WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        
+        // Insert new endorsements
+        if (!empty($endorsements)) {
+            $stmt = $db->prepare("INSERT INTO user_endorsement (user_id, aircraft_type, role_code, role_type) VALUES (?, ?, ?, ?)");
+            foreach ($endorsements as $endorsement) {
+                $stmt->execute([
+                    $userId,
+                    $endorsement['aircraft_type'],
+                    $endorsement['role_code'],
+                    $endorsement['role_type'] // 'cockpit' or 'cabin'
+                ]);
+            }
+        }
+        
+        $db->commit();
+        return true;
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log("Error saving user endorsements: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -6917,7 +7073,7 @@ function checkExtendedRecoveryRest($restDuration, $localNights) {
  * @param int $extensionsIn7Days - Number of extensions in last 7 days
  * @return array - ['allowed' => bool, 'max_extension' => float, 'reason' => string]
  */
-function checkFDPExtensionAllowed($sectors, $after backupEncroachment = null, $extensionsIn7Days = 0) {
+function checkFDPExtensionAllowed($sectors, $woclEncroachment = null, $extensionsIn7Days = 0) {
     // Max extension: up to +1:00
     $maxExtension = 1.0;
     

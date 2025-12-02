@@ -140,20 +140,36 @@ foreach ($flightsByDateAndAircraft as $date => &$aircraftFlights) {
 }
 unset($aircraftFlights); // Unset reference
 
-// Calculate maximum flights per day for grid lines
-// We need to find the maximum number of flights in a single day across all aircraft
+// Calculate maximum flights per day PER AIRCRAFT for grid lines
+// We need to find the maximum number of flights in a single day for each aircraft
+// This prevents empty rows when one day has fewer flights than another
 $maxFlightsPerDay = 0;
 $flightsCountByDate = [];
+$maxFlightsPerAircraftPerDay = [];
 
-// Count flights per date
+// Count flights per date per aircraft
 foreach ($flightsByDateAndAircraft as $date => $aircraftFlights) {
     $totalFlightsForDate = 0;
     foreach ($aircraftFlights as $aircraft_rego => $flights) {
-        $totalFlightsForDate += count($flights);
+        $flightCount = count($flights);
+        $totalFlightsForDate += $flightCount;
+        
+        // Track maximum flights per day for each aircraft
+        if (!isset($maxFlightsPerAircraftPerDay[$aircraft_rego])) {
+            $maxFlightsPerAircraftPerDay[$aircraft_rego] = 0;
+        }
+        if ($flightCount > $maxFlightsPerAircraftPerDay[$aircraft_rego]) {
+            $maxFlightsPerAircraftPerDay[$aircraft_rego] = $flightCount;
+        }
     }
     $flightsCountByDate[$date] = $totalFlightsForDate;
-    if ($totalFlightsForDate > $maxFlightsPerDay) {
-        $maxFlightsPerDay = $totalFlightsForDate;
+}
+
+// Find the overall maximum flights per day across all aircraft
+// This will be used as a fallback, but we'll use per-aircraft values when rendering
+foreach ($maxFlightsPerAircraftPerDay as $aircraft_rego => $maxFlights) {
+    if ($maxFlights > $maxFlightsPerDay) {
+        $maxFlightsPerDay = $maxFlights;
     }
 }
 
@@ -851,10 +867,24 @@ try {
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
         }
         
+        .flight-edit-form-input[readonly] {
+            background: #f1f5f9;
+            color: #64748b;
+            cursor: not-allowed;
+            border-color: #cbd5e1;
+        }
+        
         .dark .flight-edit-form-input {
             background: #0f172a;
             border-color: #334155;
             color: #f1f5f9;
+        }
+        
+        .dark .flight-edit-form-input[readonly] {
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: not-allowed;
+            border-color: #334155;
         }
         
         @media (prefers-color-scheme: dark) {
@@ -1484,13 +1514,19 @@ try {
                                 }
                                 
                                 foreach ($flightsByAircraft as $aircraft_rego => $flights): 
-                                    // Calculate height based on max flights per day (not total flights)
-                                    // 32px bar height + 2px spacing + 14px time labels + 2px bottom spacing = 50px per flight
-                                    if ($maxFlightsPerDay > 0) {
-                                        $min_row_height = 6 + (32 + 2 + 14 + 2) + (($maxFlightsPerDay - 1) * 50) + 30 + 8;
-                                    } else {
-                                        $min_row_height = 100;
+                                    // Get max flights per day for this specific aircraft
+                                    $aircraftMaxFlightsPerDay = isset($maxFlightsPerAircraftPerDay[$aircraft_rego]) 
+                                        ? $maxFlightsPerAircraftPerDay[$aircraft_rego] 
+                                        : $maxFlightsPerDay;
+                                    
+                                    // Ensure minimum of 1
+                                    if ($aircraftMaxFlightsPerDay < 1) {
+                                        $aircraftMaxFlightsPerDay = 1;
                                     }
+                                    
+                                    // Calculate height based on max flights per day for this aircraft (not total flights)
+                                    // 32px bar height + 2px spacing + 14px time labels + 2px bottom spacing = 50px per flight
+                                    $min_row_height = 6 + (32 + 2 + 14 + 2) + (($aircraftMaxFlightsPerDay - 1) * 50) + 30 + 8;
                                     
                                     // Group flights by date for vertical positioning
                                     // Each day's flights start from row 1 (index 0)
@@ -1536,12 +1572,12 @@ try {
                                         
                                         <!-- Timeline Row -->
                                         <div class="timeline-row flex-1 relative bg-gray-50 dark:bg-gray-700 rounded" style="min-height: <?php echo $min_row_height; ?>px; width: <?php echo $totalHours * 120; ?>px;">
-                                            <!-- Horizontal Grid Lines - Based on max flights per day -->
+                                            <!-- Horizontal Grid Lines - Based on max flights per day for this aircraft -->
                                             <div class="timeline-row-grid">
                                                 <?php 
-                                                // Generate horizontal grid lines based on max flights per day
+                                                // Generate horizontal grid lines based on max flights per day for this specific aircraft
                                                 // Each line is at 50px intervals (6px top + 32px bar + 2px gap + 14px time + 2px bottom)
-                                                for ($i = 0; $i < $maxFlightsPerDay; $i++): 
+                                                for ($i = 0; $i < $aircraftMaxFlightsPerDay; $i++): 
                                                     $lineTop = 6 + ($i * 50); // 6px top offset + 50px per flight
                                                 ?>
                                                     <div class="horizontal-grid-line" style="top: <?php echo $lineTop; ?>px;"></div>
@@ -1586,16 +1622,26 @@ try {
                                             // Each day's flights start from row 1 (index 0)
                                             foreach ($flightsByDateForAircraft as $flightDate => $dateFlights): 
                                                 foreach ($dateFlights as $index => $flight): 
-                                                    // Only calculate if timeline is properly initialized
-                                                    // Use actual_out_utc and actual_in_utc (fallback to TaskStart/TaskEnd)
-                                                    $actualStart = !empty($flight['actual_out_utc']) ? $flight['actual_out_utc'] : ($flight['TaskStart'] ?? null);
-                                                    $actualEnd = !empty($flight['actual_in_utc']) ? $flight['actual_in_utc'] : ($flight['TaskEnd'] ?? null);
+                                                    // Get TaskStart and TaskEnd (scheduled times)
+                                                    $taskStart = $flight['TaskStart'] ?? null;
+                                                    $taskEnd = $flight['TaskEnd'] ?? null;
+                                                    
+                                                    // Use actual_out_utc if available and not null, otherwise use TaskStart
+                                                    // Use actual_in_utc if available and not null, otherwise use TaskEnd
+                                                    $actualStart = (!empty($flight['actual_out_utc']) && $flight['actual_out_utc'] !== null) 
+                                                        ? $flight['actual_out_utc'] 
+                                                        : $taskStart;
+                                                    $actualEnd = (!empty($flight['actual_in_utc']) && $flight['actual_in_utc'] !== null) 
+                                                        ? $flight['actual_in_utc'] 
+                                                        : $taskEnd;
                                                 
                                                 if ($timelineStart && $timelineEnd && $actualStart && $actualEnd):
                                                 // Calculate positions and durations relative to timeline range
                                                 try {
-                                                    $task_start = new DateTime($actualStart);
-                                                    $task_end = new DateTime($actualEnd);
+                                                    $task_start_dt = $taskStart ? new DateTime($taskStart) : null;
+                                                    $task_end_dt = $taskEnd ? new DateTime($taskEnd) : null;
+                                                    $actual_start_dt = new DateTime($actualStart);
+                                                    $actual_end_dt = new DateTime($actualEnd);
                                                 } catch (Exception $e) {
                                                     // Skip this flight if invalid date
                                                     continue;
@@ -1605,58 +1651,8 @@ try {
                                                 $timelineDuration = $timelineEnd->getTimestamp() - $timelineStart->getTimestamp();
                                                 
                                                 if ($timelineDuration > 0) {
-                                                    // Calculate relative positions as percentages
-                                                    $start_timestamp = $task_start->getTimestamp();
-                                                    $end_timestamp = $task_end->getTimestamp();
                                                     $timeline_start_ts = $timelineStart->getTimestamp();
                                                     $timeline_end_ts = $timelineEnd->getTimestamp();
-                                                    
-                                                    // Calculate raw positions
-                                                    $start_position_percent = (($start_timestamp - $timeline_start_ts) / $timelineDuration) * 100;
-                                                    $end_position_percent = (($end_timestamp - $timeline_start_ts) / $timelineDuration) * 100;
-                                                    
-                                                    // Clamp positions to timeline bounds (0% to 100%)
-                                                    $clamped_start = max(0, min(100, $start_position_percent));
-                                                    $clamped_end = max(0, min(100, $end_position_percent));
-                                                    
-                                                    // If flight is completely outside timeline, skip it
-                                                    if ($end_timestamp < $timeline_start_ts || $start_timestamp > $timeline_end_ts) {
-                                                        continue;
-                                                    }
-                                                    
-                                                    // Use clamped positions
-                                                    $start_position_percent = $clamped_start;
-                                                    
-                                                    // Calculate duration within visible bounds
-                                                    // Ensure end position doesn't exceed 100%
-                                                    if ($clamped_end > $clamped_start) {
-                                                        $duration_percent = $clamped_end - $clamped_start;
-                                                    } else {
-                                                        // If end is before start (shouldn't happen), use minimum width
-                                                        $duration_percent = 2;
-                                                        $start_position_percent = max(0, min(98, $clamped_start));
-                                                    }
-                                                    
-                                                    // Ensure minimum width
-                                                    if ($duration_percent < 2) {
-                                                        $duration_percent = 2;
-                                                        // Adjust start position to keep bar visible and within bounds
-                                                        if ($start_position_percent + $duration_percent > 100) {
-                                                            $start_position_percent = max(0, 100 - $duration_percent);
-                                                        }
-                                                    }
-                                                    
-                                                    // Ensure bar doesn't exceed 100% width
-                                                    if ($start_position_percent + $duration_percent > 100) {
-                                                        $duration_percent = 100 - $start_position_percent;
-                                                        if ($duration_percent < 1) {
-                                                            $duration_percent = 1;
-                                                            $start_position_percent = 99;
-                                                        }
-                                                    }
-                                                    
-                                                    // Ensure start position is within bounds
-                                                    $start_position_percent = max(0, min(100 - $duration_percent, $start_position_percent));
                                                     
                                                     // Calculate delay from minutes_1 to minutes_5
                                                     $delay_minutes = 0;
@@ -1670,65 +1666,156 @@ try {
                                                         }
                                                     }
                                                     
-                                                    // Calculate delay in seconds
-                                                    $delay_seconds = $delay_minutes * 60;
+                                                    // Determine flight bar start and end
+                                                    $flight_start_timestamp = $actual_start_dt->getTimestamp();
+                                                    $flight_end_timestamp = $actual_end_dt->getTimestamp();
                                                     
-                                                    // Delay bar: from TaskStart to TaskStart + delay
-                                                    $delay_start_timestamp = $start_timestamp;
-                                                    $delay_end_timestamp = $start_timestamp + $delay_seconds;
+                                                    // Determine delay bar start and end
+                                                    // Priority 1: If delay_minutes > 0, use calculated delay from minutes
+                                                    // Priority 2: If delay_minutes == 0 and actual_out_utc exists, use Estimated Delay
+                                                    $delay_start_timestamp = 0;
+                                                    $delay_end_timestamp = 0;
+                                                    $delay_seconds = 0;
+                                                    $estimated_delay_minutes = 0;
+                                                    $is_estimated_delay = false; // Flag to identify Estimated Delay vs calculated delay
                                                     
-                                                    // Flight bar: from TaskStart + delay to TaskEnd + delay
-                                                    $flight_start_timestamp = $start_timestamp + $delay_seconds;
-                                                    $flight_end_timestamp = $end_timestamp + $delay_seconds; // Add delay to TaskEnd
+                                                    // Store original calculated delay_minutes before any modifications
+                                                    $calculated_delay_minutes = $delay_minutes;
+                                                    
+                                                    if ($task_start_dt) {
+                                                        if ($calculated_delay_minutes > 0) {
+                                                            // Priority 1: Use calculated delay from minutes_1 to minutes_5
+                                                            // Always use calculated delay, not Estimated Delay
+                                                            $delay_seconds = $calculated_delay_minutes * 60;
+                                                            $is_estimated_delay = false;
+                                                            $delay_minutes = $calculated_delay_minutes; // Use calculated delay minutes
+                                                            
+                                                            // Delay bar: from TaskStart to TaskStart + calculated delay
+                                                            $delay_start_timestamp = $task_start_dt->getTimestamp();
+                                                            $delay_end_timestamp = $task_start_dt->getTimestamp() + $delay_seconds;
+                                                            
+                                                            // Flight bar starts after delay
+                                                            // If actual_out_utc exists, flight bar starts from actual_out_utc
+                                                            // Otherwise, flight bar starts from TaskStart + delay
+                                                            // (This is already handled in flight_start_timestamp calculation above)
+                                                        } elseif ($calculated_delay_minutes == 0 && !empty($flight['actual_out_utc']) && $flight['actual_out_utc'] !== null) {
+                                                            // Priority 2: Use Estimated Delay (actual_out_utc - TaskStart)
+                                                            // Only show if no calculated delay exists (sum of minutes == 0)
+                                                            $is_estimated_delay = true;
+                                                            $delay_start_timestamp = $task_start_dt->getTimestamp();
+                                                            $delay_end_timestamp = $flight_start_timestamp;
+                                                            
+                                                            // Calculate estimated delay duration
+                                                            $estimated_delay_seconds = $delay_end_timestamp - $delay_start_timestamp;
+                                                            if ($estimated_delay_seconds > 0) {
+                                                                $delay_seconds = $estimated_delay_seconds;
+                                                                $estimated_delay_minutes = round($estimated_delay_seconds / 60);
+                                                                // Use estimated delay minutes for display
+                                                                $delay_minutes = $estimated_delay_minutes;
+                                                            }
+                                                        }
+                                                    }
                                                     
                                                     // Calculate positions relative to timelineStart
-                                                    $delay_start_offset_from_timeline = $delay_start_timestamp - $timeline_start_ts;
-                                                    $delay_end_offset_from_timeline = $delay_end_timestamp - $timeline_start_ts;
                                                     $flight_start_offset_from_timeline = $flight_start_timestamp - $timeline_start_ts;
                                                     $flight_end_offset_from_timeline = $flight_end_timestamp - $timeline_start_ts;
                                                     
-                                                    // Convert to percentages (0-100%)
-                                                    $delay_start_position_percent = ($delay_start_offset_from_timeline / $timelineDuration) * 100;
-                                                    $delay_end_position_percent = ($delay_end_offset_from_timeline / $timelineDuration) * 100;
-                                                    $delay_duration_percent = (($delay_end_offset_from_timeline - $delay_start_offset_from_timeline) / $timelineDuration) * 100;
+                                                    // Check if flight is within timeline bounds
+                                                    if ($flight_end_timestamp < $timeline_start_ts || $flight_start_timestamp > $timeline_end_ts) {
+                                                        continue;
+                                                    }
                                                     
+                                                    // Calculate flight bar positions as percentages
                                                     $start_position_percent = ($flight_start_offset_from_timeline / $timelineDuration) * 100;
                                                     $end_position_percent = ($flight_end_offset_from_timeline / $timelineDuration) * 100;
                                                     
-                                                    // Calculate flight duration (from TaskStart + delay to TaskEnd + delay)
+                                                    // Calculate flight duration
                                                     if ($flight_end_offset_from_timeline >= $flight_start_offset_from_timeline) {
                                                         $duration_percent = (($flight_end_offset_from_timeline - $flight_start_offset_from_timeline) / $timelineDuration) * 100;
                                                     } else {
-                                                        // If TaskEnd + delay is before TaskStart + delay, set minimum duration
                                                         $duration_percent = 0.5; // Minimum 0.5% width
                                                     }
                                                     
-                                                    // Ensure minimum values and bounds (0-100%)
-                                                    $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
-                                                    $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
-                                                    $delay_duration_percent = max(0.5, min(100 - $delay_start_position_percent, $delay_duration_percent));
+                                                    // Clamp flight bar positions to timeline bounds (0% to 100%)
+                                                    $clamped_start = max(0, min(100, $start_position_percent));
+                                                    $clamped_end = max(0, min(100, $end_position_percent));
                                                     
-                                                    $start_position_percent = max(0, min(100, $start_position_percent));
-                                                    $end_position_percent = max(0, min(100, $end_position_percent));
-                                                    $duration_percent = max(0.5, min(100 - $start_position_percent, $duration_percent));
+                                                    // Adjust duration if clamped
+                                                    if ($clamped_end > $clamped_start) {
+                                                        $duration_percent = $clamped_end - $clamped_start;
+                                                    } else {
+                                                        $duration_percent = max(0.5, $duration_percent);
+                                                    }
                                                     
-                                                    // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
-                                                    if ($delay_minutes > 0 && $delay_duration_percent > 0) {
-                                                        if ($start_position_percent > $delay_start_position_percent) {
-                                                            // Adjust delay to end exactly where flight starts
-                                                            $delay_duration_percent = $start_position_percent - $delay_start_position_percent;
+                                                    // Ensure minimum width
+                                                    if ($duration_percent < 0.5) {
+                                                        $duration_percent = 0.5;
+                                                    }
+                                                    
+                                                    // Ensure bar doesn't exceed 100% width
+                                                    if ($clamped_start + $duration_percent > 100) {
+                                                        $duration_percent = max(0.5, 100 - $clamped_start);
+                                                    }
+                                                    
+                                                    $start_position_percent = $clamped_start;
+                                                    
+                                                    // Calculate delay bar positions (if delay exists)
+                                                    // Show delay bar if:
+                                                    // 1. calculated_delay_minutes > 0 (calculated from minutes_1 to minutes_5) OR
+                                                    // 2. calculated_delay_minutes == 0 but Estimated Delay exists (actual_out_utc - TaskStart)
+                                                    $show_delay_bar = false;
+                                                    
+                                                    if (($calculated_delay_minutes > 0 || $is_estimated_delay) && $delay_start_timestamp > 0 && $delay_end_timestamp > 0 && $delay_end_timestamp > $delay_start_timestamp) {
+                                                        // Case 1: Calculated delay from minutes_1 to minutes_5 OR Estimated Delay
+                                                        $show_delay_bar = true;
+                                                        $delay_start_offset_from_timeline = $delay_start_timestamp - $timeline_start_ts;
+                                                        $delay_end_offset_from_timeline = $delay_end_timestamp - $timeline_start_ts;
+                                                        
+                                                        // Calculate delay bar positions as percentages
+                                                        $delay_start_position_percent = ($delay_start_offset_from_timeline / $timelineDuration) * 100;
+                                                        $delay_end_position_percent = ($delay_end_offset_from_timeline / $timelineDuration) * 100;
+                                                        
+                                                        // Calculate delay duration
+                                                        $delay_duration_percent = (($delay_end_offset_from_timeline - $delay_start_offset_from_timeline) / $timelineDuration) * 100;
+                                                        
+                                                        // Clamp delay bar positions to timeline bounds
+                                                        $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
+                                                        $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
+                                                        
+                                                        // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
+                                                        if ($delay_end_position_percent > $start_position_percent) {
+                                                            // Delay extends beyond flight start, adjust it to end where flight starts
                                                             $delay_end_position_percent = $start_position_percent;
-                                                        } else {
-                                                            // If flight starts before delay ends, adjust delay
-                                                            $delay_duration_percent = max(0.5, min(100 - $delay_start_position_percent, $delay_duration_percent));
+                                                            $delay_duration_percent = max(0.5, $delay_end_position_percent - $delay_start_position_percent);
+                                                        } else if ($delay_end_position_percent < $start_position_percent) {
+                                                            // There's a gap, adjust delay to end where flight starts
+                                                            $delay_end_position_percent = $start_position_percent;
+                                                            $delay_duration_percent = max(0.5, $delay_end_position_percent - $delay_start_position_percent);
+                                                        }
+                                                        
+                                                        // Ensure minimum delay width
+                                                        if ($delay_duration_percent < 0.5) {
+                                                            $delay_duration_percent = 0.5;
+                                                            // Adjust end position if needed
+                                                            if ($delay_start_position_percent + $delay_duration_percent <= $start_position_percent) {
+                                                                $delay_end_position_percent = $delay_start_position_percent + $delay_duration_percent;
+                                                            } else {
+                                                                $delay_end_position_percent = $start_position_percent;
+                                                                $delay_duration_percent = max(0.5, $delay_end_position_percent - $delay_start_position_percent);
+                                                            }
+                                                        }
+                                                        
+                                                        // Ensure delay bar doesn't exceed timeline bounds
+                                                        if ($delay_start_position_percent + $delay_duration_percent > 100) {
+                                                            $delay_duration_percent = max(0.5, 100 - $delay_start_position_percent);
                                                             $delay_end_position_percent = $delay_start_position_percent + $delay_duration_percent;
-                                                            // Update flight_start_percent to match delay_end_percent
-                                                            $start_position_percent = $delay_end_position_percent;
                                                         }
                                                     } else {
+                                                        // No delay bar
                                                         $delay_duration_percent = 0;
                                                         $delay_start_position_percent = 0;
                                                         $delay_end_position_percent = 0;
+                                                        $delay_minutes = 0; // Reset delay minutes to prevent showing delay bar
                                                     }
                                                     
                                                     $top_position = 6 + ($index * 50); // 50px spacing between flights (32px bar + 2px gap + 14px time + 2px bottom)
@@ -1762,20 +1849,34 @@ try {
                                                     $status_color_hex = getStatusColor($flight_status);
                                                 }
                                                 
-                                                // Format TaskStart and TaskEnd times
+                                                // Format start and end times
+                                                // Use actual_out_utc if available, otherwise use TaskStart
+                                                // Use actual_in_utc if available, otherwise use TaskEnd
                                                 $task_start_time = '';
                                                 $task_end_time = '';
-                                                if (!empty($flight['TaskStart'])) {
+                                                
+                                                // Start time: actual_out_utc first, then TaskStart
+                                                $startTimeField = !empty($flight['actual_out_utc']) && $flight['actual_out_utc'] !== null 
+                                                    ? $flight['actual_out_utc'] 
+                                                    : ($flight['TaskStart'] ?? null);
+                                                
+                                                if (!empty($startTimeField)) {
                                                     try {
-                                                        $taskStartDate = new DateTime($flight['TaskStart']);
+                                                        $taskStartDate = new DateTime($startTimeField);
                                                         $task_start_time = $taskStartDate->format('H:i');
                                                     } catch (Exception $e) {
                                                         $task_start_time = '';
                                                     }
                                                 }
-                                                if (!empty($flight['TaskEnd'])) {
+                                                
+                                                // End time: actual_in_utc first, then TaskEnd
+                                                $endTimeField = !empty($flight['actual_in_utc']) && $flight['actual_in_utc'] !== null 
+                                                    ? $flight['actual_in_utc'] 
+                                                    : ($flight['TaskEnd'] ?? null);
+                                                
+                                                if (!empty($endTimeField)) {
                                                     try {
-                                                        $taskEndDate = new DateTime($flight['TaskEnd']);
+                                                        $taskEndDate = new DateTime($endTimeField);
                                                         $task_end_time = $taskEndDate->format('H:i');
                                                     } catch (Exception $e) {
                                                         $task_end_time = '';
@@ -2416,6 +2517,47 @@ try {
                 }
             }
             
+            // Calculate Estimated Delay (actual_out_utc - TaskStart)
+            function calculateEstimatedDelay(taskStart, actualOutUtc) {
+                if (!taskStart || !actualOutUtc) {
+                    return 'N/A';
+                }
+                try {
+                    const taskStartDate = new Date(taskStart);
+                    const actualOutDate = new Date(actualOutUtc);
+                    
+                    if (isNaN(taskStartDate.getTime()) || isNaN(actualOutDate.getTime())) {
+                        return 'N/A';
+                    }
+                    
+                    // Calculate difference in milliseconds
+                    const diffMs = actualOutDate.getTime() - taskStartDate.getTime();
+                    
+                    // If negative or zero, no delay
+                    if (diffMs <= 0) {
+                        return '0 minutes (On Time)';
+                    }
+                    
+                    // Convert to minutes
+                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                    
+                    // Format output
+                    if (diffMinutes < 60) {
+                        return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} delay`;
+                    } else {
+                        const hours = Math.floor(diffMinutes / 60);
+                        const minutes = diffMinutes % 60;
+                        if (minutes === 0) {
+                            return `${hours} hour${hours !== 1 ? 's' : ''} delay`;
+                        } else {
+                            return `${hours}h ${minutes}m delay`;
+                        }
+                    }
+                } catch (e) {
+                    return 'N/A';
+                }
+            }
+            
             const html = `
                 <form id="flightEditForm" onsubmit="saveFlightData(event)">
                     <div id="flightEditMessages"></div>
@@ -2460,28 +2602,28 @@ try {
                     <!-- Times Section -->
                     <div class="flight-edit-form-section">
                         <h3 class="flight-edit-form-section-title">Times</h3>
-                        <div class="flight-edit-form-grid grid-4">
+                        <div class="flight-edit-form-grid" style="grid-template-columns: repeat(2, 1fr);">
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Task Start Date</label>
-                                <input type="date" name="TaskStart_date" id="TaskStart_date" value="${formatDate(data.TaskStart)}" class="flight-edit-form-input">
+                                <input type="date" name="TaskStart_date" id="TaskStart_date" value="${formatDate(data.TaskStart)}" class="flight-edit-form-input" readonly>
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Task Start Time (HHMM)</label>
-                                <input type="text" name="TaskStart_time" id="TaskStart_time" value="${formatTime(data.TaskStart)}" class="flight-edit-form-input" pattern="[0-9]{4}" maxlength="4" placeholder="1125">
+                                <input type="text" name="TaskStart_time" id="TaskStart_time" value="${formatTime(data.TaskStart)}" class="flight-edit-form-input" pattern="[0-9]{4}" maxlength="4" placeholder="1125" readonly>
                                 <input type="hidden" name="TaskStart" id="TaskStart" value="${data.TaskStart || ''}">
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Task End Date</label>
-                                <input type="date" name="TaskEnd_date" id="TaskEnd_date" value="${formatDate(data.TaskEnd)}" class="flight-edit-form-input">
+                                <input type="date" name="TaskEnd_date" id="TaskEnd_date" value="${formatDate(data.TaskEnd)}" class="flight-edit-form-input" readonly>
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Task End Time (HHMM)</label>
-                                <input type="text" name="TaskEnd_time" id="TaskEnd_time" value="${formatTime(data.TaskEnd)}" class="flight-edit-form-input" pattern="[0-9]{4}" maxlength="4" placeholder="1200">
+                                <input type="text" name="TaskEnd_time" id="TaskEnd_time" value="${formatTime(data.TaskEnd)}" class="flight-edit-form-input" pattern="[0-9]{4}" maxlength="4" placeholder="1200" readonly>
                                 <input type="hidden" name="TaskEnd" id="TaskEnd" value="${data.TaskEnd || ''}">
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Actual Out (UTC) Date</label>
-                                <input type="date" name="actual_out_utc_date" id="actual_out_utc_date" value="${formatDate(data.actual_out_utc)}" class="flight-edit-form-input">
+                                <input type="date" name="actual_out_utc_date" id="actual_out_utc_date" value="${data.actual_out_utc ? formatDate(data.actual_out_utc) : formatDate(data.TaskStart)}" class="flight-edit-form-input">
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Actual Out (UTC) Time (HHMM)</label>
@@ -2490,7 +2632,7 @@ try {
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Actual In (UTC) Date</label>
-                                <input type="date" name="actual_in_utc_date" id="actual_in_utc_date" value="${formatDate(data.actual_in_utc)}" class="flight-edit-form-input">
+                                <input type="date" name="actual_in_utc_date" id="actual_in_utc_date" value="${data.actual_in_utc ? formatDate(data.actual_in_utc) : formatDate(data.TaskEnd)}" class="flight-edit-form-input">
                             </div>
                             <div class="flight-edit-form-group">
                                 <label class="flight-edit-form-label">Actual In (UTC) Time (HHMM)</label>
@@ -2498,6 +2640,28 @@ try {
                                 <input type="hidden" name="actual_in_utc" id="actual_in_utc" value="${data.actual_in_utc || ''}">
                             </div>
                         </div>
+                        <div class="flight-edit-form-grid" style="grid-template-columns: repeat(1, 1fr); margin-top: 12px;">
+                            <div class="flight-edit-form-group">
+                                <label class="flight-edit-form-label" style="color: #dc2626; font-weight: 600;">
+                                    <i class="fas fa-clock mr-1"></i>Estimated Delay
+                                </label>
+                                <input type="text" id="estimated_delay" value="${calculateEstimatedDelay(data.TaskStart, data.actual_out_utc)}" class="flight-edit-form-input" readonly style="background: #fee2e2 !important; color: #dc2626 !important; font-weight: 600; border: 2px solid #dc2626; font-size: 14px; padding: 10px 12px; cursor: not-allowed;">
+                            </div>
+                        </div>
+                        <style>
+                            .dark #estimated_delay {
+                                background: #7f1d1d !important;
+                                color: #fca5a5 !important;
+                                border-color: #ef4444 !important;
+                            }
+                            @media (prefers-color-scheme: dark) {
+                                #estimated_delay {
+                                    background: #7f1d1d !important;
+                                    color: #fca5a5 !important;
+                                    border-color: #ef4444 !important;
+                                }
+                            }
+                        </style>
                     </div>
                     
                     <!-- Flight Times -->
@@ -2604,6 +2768,9 @@ try {
             // Initialize datetime handlers
             initializeDateTimeHandlers();
             
+            // Initialize Estimated Delay calculation and update handler
+            initializeEstimatedDelayHandler();
+            
             // Initialize delay code handlers after form is rendered
             initializeDelayCodeHandlers();
             
@@ -2679,8 +2846,14 @@ try {
                                         <option value="">-- Select Code --</option>
                                         ${delayCodes.map(code => {
                                             const isSelected = code.code === selectedCode ? 'selected' : '';
-                                            // Show only code in option, description will be shown below
-                                            return `<option value="${escapeHtml(code.code)}" data-description="${escapeHtml(code.description)}" ${isSelected}>${escapeHtml(code.code)}</option>`;
+                                            // Truncate description if too long (max 80 characters)
+                                            let displayDescription = code.description || '';
+                                            if (displayDescription.length > 80) {
+                                                displayDescription = displayDescription.substring(0, 80) + '...';
+                                            }
+                                            // Show code + description in option
+                                            const displayText = `${escapeHtml(code.code)} - ${escapeHtml(displayDescription)}`;
+                                            return `<option value="${escapeHtml(code.code)}" data-description="${escapeHtml(code.description)}" ${isSelected}>${displayText}</option>`;
                                         }).join('')}
                                     </select>
                                     <div id="code_description_${i}" class="delay-code-description" style="display: ${selectedCode ? 'block' : 'none'};">
@@ -2727,6 +2900,89 @@ try {
             }
             
             return html;
+        }
+        
+        // Estimated Delay Handler
+        function initializeEstimatedDelayHandler() {
+            const taskStartDateField = document.getElementById('TaskStart_date');
+            const taskStartTimeField = document.getElementById('TaskStart_time');
+            const actualOutDateField = document.getElementById('actual_out_utc_date');
+            const actualOutTimeField = document.getElementById('actual_out_utc_time');
+            const estimatedDelayField = document.getElementById('estimated_delay');
+            
+            function updateEstimatedDelay() {
+                if (!estimatedDelayField) return;
+                
+                const taskStartDate = taskStartDateField?.value;
+                const taskStartTime = taskStartTimeField?.value;
+                const actualOutDate = actualOutDateField?.value;
+                const actualOutTime = actualOutTimeField?.value;
+                
+                if (!taskStartDate || !taskStartTime || !actualOutDate || !actualOutTime) {
+                    estimatedDelayField.value = 'N/A';
+                    return;
+                }
+                
+                // Combine date and time
+                const taskStartDateTime = `${taskStartDate} ${taskStartTime.substring(0, 2)}:${taskStartTime.substring(2, 4)}:00`;
+                const actualOutDateTime = `${actualOutDate} ${actualOutTime.substring(0, 2)}:${actualOutTime.substring(2, 4)}:00`;
+                
+                try {
+                    const taskStartDateObj = new Date(taskStartDateTime);
+                    const actualOutDateObj = new Date(actualOutDateTime);
+                    
+                    if (isNaN(taskStartDateObj.getTime()) || isNaN(actualOutDateObj.getTime())) {
+                        estimatedDelayField.value = 'N/A';
+                        return;
+                    }
+                    
+                    // Calculate difference in milliseconds
+                    const diffMs = actualOutDateObj.getTime() - taskStartDateObj.getTime();
+                    
+                    // If negative or zero, no delay
+                    if (diffMs <= 0) {
+                        estimatedDelayField.value = '0 minutes (On Time)';
+                        return;
+                    }
+                    
+                    // Convert to minutes
+                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                    
+                    // Format output
+                    if (diffMinutes < 60) {
+                        estimatedDelayField.value = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} delay`;
+                    } else {
+                        const hours = Math.floor(diffMinutes / 60);
+                        const minutes = diffMinutes % 60;
+                        if (minutes === 0) {
+                            estimatedDelayField.value = `${hours} hour${hours !== 1 ? 's' : ''} delay`;
+                        } else {
+                            estimatedDelayField.value = `${hours}h ${minutes}m delay`;
+                        }
+                    }
+                } catch (e) {
+                    estimatedDelayField.value = 'N/A';
+                }
+            }
+            
+            // Add event listeners
+            if (taskStartDateField) {
+                taskStartDateField.addEventListener('change', updateEstimatedDelay);
+            }
+            if (taskStartTimeField) {
+                taskStartTimeField.addEventListener('input', updateEstimatedDelay);
+                taskStartTimeField.addEventListener('blur', updateEstimatedDelay);
+            }
+            if (actualOutDateField) {
+                actualOutDateField.addEventListener('change', updateEstimatedDelay);
+            }
+            if (actualOutTimeField) {
+                actualOutTimeField.addEventListener('input', updateEstimatedDelay);
+                actualOutTimeField.addEventListener('blur', updateEstimatedDelay);
+            }
+            
+            // Initial calculation
+            updateEstimatedDelay();
         }
         
         // Delay Code Management Functions
