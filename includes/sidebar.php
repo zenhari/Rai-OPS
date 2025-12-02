@@ -269,6 +269,14 @@ function getAbsolutePath($path) {
                         Crew List
                     </a>
                     
+                    <?php if (checkPageAccessEnhanced('admin/operations/gd_list.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/operations/gd_list.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'gd_list') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-file-alt mr-3 text-sm"></i>
+                        GD List
+                    </a>
+                    <?php endif; ?>
+                    
                     <?php if (checkPageAccessEnhanced('admin/operations/daily_crew.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/operations/daily_crew.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'daily_crew') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">

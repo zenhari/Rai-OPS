@@ -862,21 +862,21 @@ $endDateFormatted = date('M j, Y', strtotime($endDate));
             
             // FLIGHT INFORMATION ROW (6 columns)
             tableHTML += '<tr>';
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">OPERATOR:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">RAIMON AIRWAYS</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">DATE:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">${dateFormatted}</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">DEP:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">${departure}</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">OPERATOR:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">RAIMON AIRWAYS</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">DATE:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">${dateFormatted}</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">DEP:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">${departure}</td>`;
             tableHTML += '</tr>';
             
             tableHTML += '<tr>';
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">MARKS OF NATIONALITY AND REGISTRATION:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">${aircraftRego}</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">FLIGHT NO:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">${flightNo}</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray};">DES:</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px;">${arrival}</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">MARKS OF NATIONALITY AND REGISTRATION:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">${aircraftRego}</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">FLIGHT NO:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">${flightNo}</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; white-space: nowrap; width: auto;">DES:</td>`;
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; white-space: nowrap; width: auto;">${arrival}</td>`;
             tableHTML += '</tr>';
             
             // FLIGHT ROUTING SECTION (6 columns)
@@ -899,37 +899,68 @@ $endDateFormatted = date('M j, Y', strtotime($endDate));
             }
             tableHTML += '</tr>';
             
-            // CREW LIST SECTION - Single column (all crew members in one table) (6 columns)
+            // CREW LIST SECTION - Single table with two columns (6 columns)
             tableHTML += '<tr>';
-            tableHTML += `<td colspan="6" style="border: 1px solid ${colors.border}; padding: 8px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">CREW DETAIL</td>`;
-            tableHTML += '</tr>';
-            tableHTML += '<tr>';
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">NO</td>`;
-            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">TITILE</td>`;
-            tableHTML += `<td colspan="4" style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">NAMES OF CREW</td>`;
+            tableHTML += `<td colspan="6" style="border: 1px solid ${colors.border}; padding: 8px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">NAMES OF CREW</td>`;
             tableHTML += '</tr>';
             
-            // CREW ROWS - All in single column with consistent row height
-            const maxCrewRows = Math.max(crewMembers.length, 8);
-            for (let i = 0; i < maxCrewRows; i++) {
-                const crew = crewMembers[i] || null;
+            // Split crew members into two groups (left column: first 8, right column: rest)
+            const leftCrew = [];
+            const rightCrew = [];
+            crewMembers.forEach((crew, index) => {
+                if (index < 8) {
+                    leftCrew.push(crew);
+                } else {
+                    rightCrew.push(crew);
+                }
+            });
+            
+            // Determine max rows for both columns (should be equal)
+            const maxRows = Math.max(8, Math.max(leftCrew.length, rightCrew.length));
+            
+            // Fill both columns to the same number of rows
+            while (leftCrew.length < maxRows) {
+                leftCrew.push(null);
+            }
+            
+            while (rightCrew.length < maxRows) {
+                rightCrew.push(null);
+            }
+            
+            // Format name as LASTNAME,FIRSTNAME
+            const formatCrewName = (crew) => {
+                if (!crew || !crew.name) return '';
+                const parts = crew.name.trim().split(' ');
+                if (parts.length >= 2) {
+                    const lastName = parts[parts.length - 1];
+                    const firstName = parts.slice(0, -1).join(' ');
+                    return `${lastName.toUpperCase()}, ${firstName.toUpperCase()}`;
+                }
+                return crew.name.toUpperCase();
+            };
+            
+            // Header row for two columns
+            tableHTML += '<tr>';
+            // Left column header
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">TITILE</td>`;
+            tableHTML += `<td colspan="2" style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">NAMES OF CREW</td>`;
+            // Right column header
+            tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">TITILE</td>`;
+            tableHTML += `<td colspan="2" style="border: 1px solid ${colors.border}; padding: 6px; font-weight: bold; background-color: ${colors.gray}; text-align: center;">NAMES OF CREW</td>`;
+            tableHTML += '</tr>';
+            
+            // CREW ROWS - Two columns side by side
+            for (let i = 0; i < maxRows; i++) {
+                const leftCrewMember = leftCrew[i] || null;
+                const rightCrewMember = rightCrew[i] || null;
                 
                 tableHTML += '<tr>';
-                tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 10px; text-align: center; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${crew ? colors.bgCell : '#f9fafb'};">${crew ? (i + 1) : ''}</td>`;
-                tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 10px; text-align: center; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${crew ? colors.bgCell : '#f9fafb'};">${crew ? (crew.role.toUpperCase() || '') : ''}</td>`;
-                // Format name as LASTNAME,FIRSTNAME
-                let crewName = '';
-                if (crew && crew.name) {
-                    const parts = crew.name.trim().split(' ');
-                    if (parts.length >= 2) {
-                        const lastName = parts[parts.length - 1];
-                        const firstName = parts.slice(0, -1).join(' ');
-                        crewName = `${lastName.toUpperCase()},${firstName.toUpperCase()}`;
-                    } else {
-                        crewName = crew.name.toUpperCase();
-                    }
-                }
-                tableHTML += `<td colspan="4" style="border: 1px solid ${colors.border}; padding: 10px; text-align: left; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${crew ? colors.bgCell : '#f9fafb'};">${crewName}</td>`;
+                // Left column
+                tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 8px; text-align: center; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${leftCrewMember ? colors.bgCell : '#f9fafb'};">${leftCrewMember ? (leftCrewMember.role.toUpperCase() || '') : ''}</td>`;
+                tableHTML += `<td colspan="2" style="border: 1px solid ${colors.border}; padding: 8px; text-align: left; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${leftCrewMember ? colors.bgCell : '#f9fafb'};">${formatCrewName(leftCrewMember)}</td>`;
+                // Right column
+                tableHTML += `<td style="border: 1px solid ${colors.border}; padding: 8px; text-align: center; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${rightCrewMember ? colors.bgCell : '#f9fafb'};">${rightCrewMember ? (rightCrewMember.role.toUpperCase() || '') : ''}</td>`;
+                tableHTML += `<td colspan="2" style="border: 1px solid ${colors.border}; padding: 8px; text-align: left; min-height: 35px; height: 35px; vertical-align: middle; background-color: ${rightCrewMember ? colors.bgCell : '#f9fafb'};">${formatCrewName(rightCrewMember)}</td>`;
                 tableHTML += '</tr>';
             }
             
@@ -963,9 +994,7 @@ $endDateFormatted = date('M j, Y', strtotime($endDate));
             tableHTML += '</tr>';
             tableHTML += '<tr>';
             tableHTML += `<td colspan="6" style="border: 1px solid ${colors.border}; padding: 8px; font-size: 10px; line-height: 1.5; text-align: justify;">`;
-            tableHTML += 'The following conditions must be reported: fever, coughing, impaired breathing, diarrhea, vomiting, skin rash, bruising/bleeding, confusion.';
-            tableHTML += '<br><br>';
-            tableHTML += 'Details of disinsecting or sanitary treatment:';
+            tableHTML += 'The following conditions must be reported: illnesses other than airsickness or accident effects; communicable diseases (fever 38°C/100°F or greater, with symptoms like appearing unwell, persistent coughing, impaired breathing, persistent diarrhea, persistent vomiting, skin rash, bruising/bleeding without injury, or recent confusion); cases of illness disembarked at a previous stop; details of disinsecting or sanitary treatment during the flight (place, date, time, method). If no disinsecting, details of the most recent one.';
             tableHTML += '</td>';
             tableHTML += '</tr>';
             tableHTML += '<tr>';

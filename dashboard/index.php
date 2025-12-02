@@ -1689,11 +1689,11 @@ try {
                                                             $delay_seconds = $calculated_delay_minutes * 60;
                                                             $is_estimated_delay = false;
                                                             $delay_minutes = $calculated_delay_minutes; // Use calculated delay minutes
-                                                            
+                                                    
                                                             // Delay bar: from TaskStart to TaskStart + calculated delay
                                                             $delay_start_timestamp = $task_start_dt->getTimestamp();
                                                             $delay_end_timestamp = $task_start_dt->getTimestamp() + $delay_seconds;
-                                                            
+                                                    
                                                             // Flight bar starts after delay
                                                             // If actual_out_utc exists, flight bar starts from actual_out_utc
                                                             // Otherwise, flight bar starts from TaskStart + delay
@@ -1779,10 +1779,10 @@ try {
                                                         $delay_duration_percent = (($delay_end_offset_from_timeline - $delay_start_offset_from_timeline) / $timelineDuration) * 100;
                                                         
                                                         // Clamp delay bar positions to timeline bounds
-                                                        $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
-                                                        $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
-                                                        
-                                                        // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
+                                                    $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
+                                                    $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
+                                                    
+                                                    // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
                                                         if ($delay_end_position_percent > $start_position_percent) {
                                                             // Delay extends beyond flight start, adjust it to end where flight starts
                                                             $delay_end_position_percent = $start_position_percent;
@@ -1799,7 +1799,7 @@ try {
                                                             // Adjust end position if needed
                                                             if ($delay_start_position_percent + $delay_duration_percent <= $start_position_percent) {
                                                                 $delay_end_position_percent = $delay_start_position_percent + $delay_duration_percent;
-                                                            } else {
+                                                        } else {
                                                                 $delay_end_position_percent = $start_position_percent;
                                                                 $delay_duration_percent = max(0.5, $delay_end_position_percent - $delay_start_position_percent);
                                                             }
