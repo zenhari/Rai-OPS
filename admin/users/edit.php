@@ -20,6 +20,14 @@ $current_user = getCurrentUser();
 $message = '';
 $message_type = '';
 
+// Log page view
+logActivity('view', __FILE__, [
+    'page_name' => 'Edit User',
+    'section' => 'User Management',
+    'record_id' => $user_id,
+    'record_type' => 'user'
+]);
+
 // Handle success messages from redirects
 if (isset($_GET['msg'])) {
     if ($_GET['msg'] === 'file_uploaded') {
@@ -321,12 +329,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     } elseif ($action === 'change_password') {
-        $current_password = $_POST['current_password'] ?? '';
         $new_password = $_POST['new_password'] ?? '';
         $confirm_password = $_POST['confirm_password'] ?? '';
         
         // Validate password fields
-        if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
+        if (empty($new_password) || empty($confirm_password)) {
             $message = 'Please fill in all password fields.';
             $message_type = 'error';
         } elseif ($new_password !== $confirm_password) {
@@ -336,11 +343,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $message = 'New password must be at least 6 characters long.';
             $message_type = 'error';
         } else {
-            if (changePassword($user_id, $current_password, $new_password)) {
+            if (changePassword($user_id, null, $new_password)) {
                 $message = 'Password changed successfully.';
                 $message_type = 'success';
             } else {
-                $message = 'Failed to change password. Please check your current password.';
+                $message = 'Failed to change password.';
                 $message_type = 'error';
             }
         }
@@ -1582,23 +1589,7 @@ if ($user['flight_crew'] == 1) {
                         <form method="POST" class="space-y-4">
                             <input type="hidden" name="action" value="change_password">
                             
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <!-- Current Password -->
-                                <div>
-                                    <label for="current_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Current Password *
-                                    </label>
-                                    <div class="relative">
-                                        <input type="password" id="current_password" name="current_password" required
-                                               class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                               placeholder="Enter current password">
-                                        <button type="button" onclick="togglePassword('current_password', 'current_password_icon')" 
-                                                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                            <i id="current_password_icon" class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <!-- New Password -->
                                 <div>
                                     <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -200,6 +200,14 @@ function getAbsolutePath($path) {
                     </a>
                     <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/fleet/toolbox/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/fleet/toolbox/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'toolbox') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-toolbox mr-3 text-sm"></i>
+                        Toolbox
+                    </a>
+                    <?php endif; ?>
+                    
                 </div>
             </div>
 
@@ -428,7 +436,7 @@ function getAbsolutePath($path) {
             <?php endif; ?>
 
             <!-- Recency -->
-            <?php if (checkPageAccessEnhanced('admin/users/personnel_recency/index.php') || checkPageAccessEnhanced('admin/users/certificate/index.php')): ?>
+            <?php if (checkPageAccessEnhanced('admin/users/personnel_recency/index.php') || checkPageAccessEnhanced('admin/users/certificate/index.php') || checkPageAccessEnhanced('admin/recency_management/index.php')): ?>
             <div class="space-y-1">
                 <button id="recency-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -438,16 +446,34 @@ function getAbsolutePath($path) {
                     <i id="recency-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
                 </button>
                 <div id="recency-menu" class="hidden pl-6 space-y-1">
+                    <?php if (checkPageAccessEnhanced('admin/recency_management/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/recency_management/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'recency_management' && $current_page == 'index') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-cog mr-3 text-sm"></i>
+                        Recency Management
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/recency_management/set_recency.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/recency_management/set_recency.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'recency_management' && $current_page == 'set_recency') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-list-check mr-3 text-sm"></i>
+                        Set Recency's
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/users/personnel_recency/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/users/personnel_recency/index.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'index' && $current_dir == 'personnel_recency') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-user-clock mr-3 text-sm"></i>
                         Personnel Recency
                     </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/users/certificate/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/users/certificate/index.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'index' && $current_dir == 'certificate') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-certificate mr-3 text-sm"></i>
                         Certificate
                     </a>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>
@@ -676,8 +702,70 @@ function getAbsolutePath($path) {
                         <i class="fas fa-certificate mr-3 text-sm"></i>
                         My Certificate
                     </a>
+                    <a href="<?php echo getAbsolutePath('admin/profile/my_quiz.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'my_quiz') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-question-circle mr-3 text-sm"></i>
+                        My Quiz
+                    </a>
                 </div>
             </div>
+
+            <!-- Training -->
+            <?php if (checkPageAccessEnhanced('admin/training/quiz/index.php') || checkPageAccessEnhanced('admin/training/quiz/create_set.php') || checkPageAccessEnhanced('admin/training/quiz/assign_quiz.php') || checkPageAccessEnhanced('admin/training/quiz/results.php') || checkPageAccessEnhanced('admin/training/certificate/issue_certificate.php') || checkPageAccessEnhanced('admin/users/certificate/index.php')): ?>
+            <div class="space-y-1">
+                <button id="training-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
+                    <div class="flex items-center">
+                        <i class="fas fa-graduation-cap mr-3 text-lg"></i>
+                        Training
+                    </div>
+                    <i id="training-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
+                </button>
+                <div id="training-menu" class="hidden pl-6 space-y-1">
+                    <?php if (checkPageAccessEnhanced('admin/training/quiz/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/quiz/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'index' && $current_dir == 'quiz') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-list mr-3 text-sm"></i>
+                        Quiz Set List
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/training/quiz/create_set.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/quiz/create_set.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'create_set' && $current_dir == 'quiz') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-plus-circle mr-3 text-sm"></i>
+                        Create Quiz Set
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/training/quiz/assign_quiz.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/quiz/assign_quiz.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'assign_quiz' && $current_dir == 'quiz') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-user-check mr-3 text-sm"></i>
+                        Assign Quiz
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/training/quiz/results.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/quiz/results.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'results' && $current_dir == 'quiz') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-chart-bar mr-3 text-sm"></i>
+                        Quiz Results
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/training/certificate/issue_certificate.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/certificate/issue_certificate.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'issue_certificate' && $current_dir == 'certificate') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-certificate mr-3 text-sm"></i>
+                        Issue Certificate
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/users/certificate/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/users/certificate/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'index' && $current_dir == 'certificate') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-list mr-3 text-sm"></i>
+                        Certificate List
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <!-- Transport -->
             <?php if (checkPageAccessEnhanced('admin/transport/trip_management.php')): ?>
@@ -715,22 +803,13 @@ function getAbsolutePath($path) {
             </a>
 
             <!-- Full Log -->
-            <?php if (checkPageAccessEnhanced('admin/full_log/flight_log.php')): ?>
+            <?php if (checkPageAccessEnhanced('admin/full_log/activity_log.php')): ?>
             <div class="space-y-1">
-                <button id="full-log-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
-                    <div class="flex items-center">
-                        <i class="fas fa-history mr-3 text-lg"></i>
-                        Full Log
-                    </div>
-                    <i id="full-log-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
-                </button>
-                <div id="full-log-menu" class="hidden pl-6 space-y-1">
-                    <a href="<?php echo getAbsolutePath('admin/full_log/flight_log.php'); ?>" 
-                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'full_log' && $current_page == 'flight_log') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
-                        <i class="fas fa-plane mr-3 text-sm"></i>
-                        Flight Log
-                    </a>
-                </div>
+                <a href="<?php echo getAbsolutePath('admin/full_log/activity_log.php'); ?>" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'full_log' && $current_page == 'activity_log') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                    <i class="fas fa-history mr-3 text-lg"></i>
+                    Activity Log
+                </a>
             </div>
             <?php endif; ?>
         </div>
@@ -843,17 +922,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const rosterMenu = document.getElementById('roster-menu');
     const rosterArrow = document.getElementById('roster-arrow');
 
-    const fullLogToggle = document.getElementById('full-log-toggle');
-    const fullLogMenu = document.getElementById('full-log-menu');
-    const fullLogArrow = document.getElementById('full-log-arrow');
+    const trainingToggle = document.getElementById('training-toggle');
+    const trainingMenu = document.getElementById('training-menu');
+    const trainingArrow = document.getElementById('training-arrow');
 
     function toggleMenu(menu, arrow) {
-        // Close all other menus first
-        closeAllMenus();
-        
-        // Then open the clicked menu
-        menu.classList.remove('hidden');
-        arrow.classList.add('rotate-180');
+        // Toggle the clicked menu (open if closed, close if open)
+        // Don't close other menus
+        if (menu && arrow) {
+            const isHidden = menu.classList.contains('hidden');
+            if (isHidden) {
+                // Open the menu
+                menu.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                // Close the menu
+                menu.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
     }
 
     function toggleSubMenu(menu, arrow, parentMenu, parentArrow) {
@@ -932,14 +1019,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (fullLogToggle) {
-        fullLogToggle.addEventListener('click', () => toggleMenu(fullLogMenu, fullLogArrow));
+    if (trainingToggle) {
+        trainingToggle.addEventListener('click', () => toggleMenu(trainingMenu, trainingArrow));
     }
 
     // Function to close all menus
     function closeAllMenus() {
-        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, fullLogMenu];
-        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, fullLogArrow];
+        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, trainingMenu];
+        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, trainingArrow];
         
         allMenus.forEach(menu => {
             if (menu) menu.classList.add('hidden');
@@ -966,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeAllMenus();
     
     // Auto-open fleet menu if on fleet management pages
-    if (currentDir === 'fleet' || currentDir === 'aircraft' || currentDir === 'routes' || currentDir === 'etl_report' || currentDir === 'handover' || currentDir === 'delay_codes' || currentDir === 'mel_items' || currentDir === 'camo_report' || currentPage === 'stations' || currentPage === 'fix_time') {
+    if (currentDir === 'fleet' || currentDir === 'aircraft' || currentDir === 'routes' || currentDir === 'etl_report' || currentDir === 'handover' || currentDir === 'delay_codes' || currentDir === 'mel_items' || currentDir === 'camo_report' || currentDir === 'toolbox' || currentPage === 'stations' || currentPage === 'fix_time') {
         openMenu(fleetMenu, fleetArrow);
     }
     
@@ -986,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open recency menu if on recency pages
-    else if (currentDir === 'personnel_recency' || currentDir === 'certificate') {
+    else if (currentDir === 'personnel_recency' || currentDir === 'certificate' || currentDir === 'recency_management') {
         openMenu(recencyMenu, recencyArrow);
     }
     
@@ -1016,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open My RIOPS menu if on profile pages
-    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate') {
+    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz') {
         openMenu(myRiOPSMenu, myRiOPSArrow);
     }
     
@@ -1025,9 +1112,16 @@ document.addEventListener('DOMContentLoaded', function() {
         openMenu(priceMenu, priceArrow);
     }
     
-    // Auto-open Full Log menu if on full log pages
-    else if (currentDir === 'full_log') {
-        openMenu(fullLogMenu, fullLogArrow);
+    // Auto-open Full Log menu if on full log pages (removed - no longer a menu, just a link)
+    
+    // Auto-open Training menu if on training pages
+    else if (currentDir === 'training' || currentDir === 'quiz' || currentDir === 'certificate') {
+        openMenu(trainingMenu, trainingArrow);
+    }
+    
+    // Auto-open My RIOPS menu if on profile pages or my_quiz
+    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz') {
+        openMenu(myRiOPSMenu, myRiOPSArrow);
     }
 
     // Close sidebar when clicking on a link (mobile)

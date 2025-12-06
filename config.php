@@ -166,6 +166,12 @@ function loginUser($username, $password) {
             $updateStmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
             $updateStmt->execute([$user['id']]);
             
+            // Log login activity
+            logActivity('login', 'login.php', [
+                'page_name' => 'User Login',
+                'section' => 'Authentication'
+            ]);
+            
             return true;
         }
         return false;
@@ -179,6 +185,14 @@ function isLoggedIn() {
 }
 
 function logoutUser() {
+    // Log logout activity before destroying session
+    if (isLoggedIn()) {
+        logActivity('logout', 'logout.php', [
+            'page_name' => 'User Logout',
+            'section' => 'Authentication'
+        ]);
+    }
+    
     session_destroy();
     session_start();
 }
@@ -965,13 +979,15 @@ function changePassword($id, $currentPassword, $newPassword) {
     try {
         $pdo = getDBConnection();
         
-        // First verify current password
+        // If current password is provided, verify it first
+        if ($currentPassword !== null && $currentPassword !== '') {
         $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$user || !password_verify($currentPassword, $user['password'])) {
             return false; // Current password is incorrect
+            }
         }
         
         // Update password
@@ -5021,7 +5037,8 @@ function getODBFileUrl($filePath) {
         return null;
     }
     
-    return BASE_URL . $filePath;
+    // Use dynamic base_url() function to get current host instead of hardcoded localhost
+    return base_url() . ltrim($filePath, '/');
 }
 
 // ==================== ROUTES AND STATIONS FUNCTIONS ====================
@@ -8674,6 +8691,102 @@ function getRoutes() {
     } catch (Exception $e) {
         error_log("Error getting routes: " . $e->getMessage());
         return [];
+    }
+}
+
+/**
+ * Log user activity
+ * 
+ * @param string $actionType - view, create, update, delete, login, logout, export, print
+ * @param string $pagePath - Path to the page (e.g., 'admin/users/edit.php')
+ * @param array $options - Additional options:
+ *   - page_name: Display name of the page
+ *   - section: Section name (e.g., 'User Form', 'Flight Table')
+ *   - field_name: Field that was changed
+ *   - old_value: Previous value
+ *   - new_value: New value
+ *   - record_id: ID of the record being modified
+ *   - record_type: Type of record (e.g., 'user', 'flight', 'box')
+ *   - changes: Array of changes [['field' => 'name', 'old' => 'John', 'new' => 'Jane']]
+ */
+function logActivity($actionType, $pagePath, $options = []) {
+    try {
+        // Get current user
+        $user = getCurrentUser();
+        if (!$user || !isset($user['id'])) {
+            return false; // Don't log if user is not logged in
+        }
+        
+        $db = getDBConnection();
+        
+        // Prepare data
+        $pageName = $options['page_name'] ?? basename($pagePath);
+        $section = $options['section'] ?? null;
+        $fieldName = $options['field_name'] ?? null;
+        $oldValue = $options['old_value'] ?? null;
+        $newValue = $options['new_value'] ?? null;
+        $recordId = $options['record_id'] ?? null;
+        $recordType = $options['record_type'] ?? null;
+        
+        // Handle multiple changes
+        $changesSummary = null;
+        if (isset($options['changes']) && is_array($options['changes'])) {
+            $changesSummary = json_encode($options['changes']);
+            // If multiple changes, set field_name to null
+            if (count($options['changes']) > 1) {
+                $fieldName = null;
+                $oldValue = null;
+                $newValue = null;
+            } else {
+                // Single change
+                $change = $options['changes'][0];
+                $fieldName = $change['field'] ?? $fieldName;
+                $oldValue = $change['old'] ?? $oldValue;
+                $newValue = $change['new'] ?? $newValue;
+            }
+        }
+        
+        // Truncate long values
+        if ($oldValue && strlen($oldValue) > 1000) {
+            $oldValue = substr($oldValue, 0, 1000) . '...';
+        }
+        if ($newValue && strlen($newValue) > 1000) {
+            $newValue = substr($newValue, 0, 1000) . '...';
+        }
+        
+        // Get IP address and user agent
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
+        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ipAddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        }
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+        
+        // Insert log
+        $stmt = $db->prepare("INSERT INTO activity_logs 
+            (user_id, action_type, page_path, page_name, section, field_name, old_value, new_value, 
+             record_id, record_type, changes_summary, ip_address, user_agent) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->execute([
+            $user['id'],
+            $actionType,
+            $pagePath,
+            $pageName,
+            $section,
+            $fieldName,
+            $oldValue,
+            $newValue,
+            $recordId,
+            $recordType,
+            $changesSummary,
+            $ipAddress,
+            $userAgent
+        ]);
+        
+        return true;
+    } catch (Exception $e) {
+        error_log("Error logging activity: " . $e->getMessage());
+        return false;
     }
 }
 

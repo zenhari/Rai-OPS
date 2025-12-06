@@ -257,6 +257,15 @@ function acknowledgeNotification(notificationId) {
 
 function acknowledgeAllNotifications() {
     if (confirm('Are you sure you want to acknowledge all notifications?')) {
+        // Disable button to prevent double-click
+        const button = document.querySelector('[onclick="acknowledgeAllNotifications()"]');
+        let originalText = '';
+        if (button) {
+            button.disabled = true;
+            originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Acknowledging...';
+        }
+        
         const promises = unreadNotificationIds.map(id => {
             return fetch('/admin/api/acknowledge_odb.php', {
                 method: 'POST',
@@ -267,24 +276,74 @@ function acknowledgeAllNotifications() {
                     action: 'acknowledge',
                     notification_id: id
                 })
+            })
+            .then(response => {
+                // Try to parse JSON response
+                return response.json().then(data => {
+                    // Consider both success:true and "already acknowledged" as success
+                    const isSuccess = data.success === true || 
+                                     (data.message && data.message.includes('already acknowledged'));
+                    return {
+                        success: isSuccess,
+                        message: data.message || 'Unknown response',
+                        notification_id: id,
+                        httpStatus: response.status
+                    };
+                }).catch(() => {
+                    // If JSON parsing fails, check HTTP status
+                    return {
+                        success: response.ok,
+                        message: `HTTP ${response.status}: ${response.statusText}`,
+                        notification_id: id,
+                        httpStatus: response.status
+                    };
+                });
+            })
+            .catch(error => {
+                console.error(`Error acknowledging notification ${id}:`, error);
+                return {
+                    success: false,
+                    message: error.message || 'Network error',
+                    notification_id: id,
+                    httpStatus: 0
+                };
             });
         });
         
         Promise.all(promises)
-        .then(responses => Promise.all(responses.map(r => r.json())))
         .then(results => {
-            const allSuccess = results.every(r => r.success);
-            if (allSuccess) {
+            console.log('Acknowledge all results:', results);
+            
+            // Count successful acknowledgments (including already acknowledged)
+            const successful = results.filter(r => r.success === true);
+            const failed = results.filter(r => r.success === false);
+            
+            // If all were successful (including already acknowledged), close modal
+            if (failed.length === 0) {
                 closeODBModal();
-                // Optionally reload the page to update the sidebar
+                // Reload the page to update the sidebar
                 window.location.reload();
             } else {
-                alert('Some notifications could not be acknowledged. Please try again.');
+                // Re-enable button on error
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+                
+                // Show detailed error message
+                const errorMessages = failed.map(r => `Notification ${r.notification_id}: ${r.message || 'Unknown error'}`).join('\n');
+                console.error('Failed to acknowledge notifications:', errorMessages);
+                alert(`Some notifications could not be acknowledged:\n\n${errorMessages}\n\n${successful.length} notification(s) were successfully acknowledged.`);
             }
         })
         .catch(error => {
             console.error('Error acknowledging all notifications:', error);
-            alert('Error acknowledging notifications. Please try again.');
+            // Re-enable button on error
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+            alert('Error acknowledging notifications. Please check console for details and try again.');
         });
     }
 }

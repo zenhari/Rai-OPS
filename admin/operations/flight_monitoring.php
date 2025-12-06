@@ -311,13 +311,11 @@ foreach ($flights_by_aircraft as $aircraft_rego => $aircraft_flights_by_date) {
             height: 32px;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s ease;
             max-width: 100%;
             box-sizing: border-box;
         }
         
         .flight-bar:hover {
-            transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             z-index: 10;
         }

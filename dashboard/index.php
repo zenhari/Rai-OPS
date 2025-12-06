@@ -9,6 +9,12 @@ if (!isLoggedIn()) {
 
 $user = getCurrentUser();
 
+// Log page view
+logActivity('view', __FILE__, [
+    'page_name' => 'Dashboard',
+    'section' => 'Main Dashboard'
+]);
+
 // Get aircraft data for dashboard
 $aircraft = getAllAircraft();
 $aircraftCount = count($aircraft);
@@ -347,12 +353,10 @@ try {
             height: 32px;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s ease;
             max-width: 100%;
             box-sizing: border-box;
         }
         .flight-bar:hover {
-            transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             z-index: 10;
         }
@@ -1330,6 +1334,17 @@ try {
                         </div>
                         
                         <div class="flex items-center space-x-4">
+                            <!-- Auto Refresh Controls -->
+                            <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-md p-1">
+                                <button id="autoRefreshToggle" class="px-3 py-2 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 shadow-sm" title="Toggle Auto Refresh">
+                                    <i class="fas fa-play" id="autoRefreshIcon"></i>
+                                    <span id="autoRefreshText" class="ml-1 text-sm">Play</span>
+                                </button>
+                                <div class="text-xs text-gray-600 dark:text-gray-400 px-2" id="refreshCountdown">
+                                    <span id="countdownTime">30</span>s
+                                </div>
+                            </div>
+                            
                             <!-- Notifications -->
                             <a href="/admin/odb/list.php" class="relative p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200" title="ODB Notifications">
                                 <i class="fas fa-bell"></i>
@@ -3798,6 +3813,84 @@ try {
                 }
             }
         });
+        
+        // Auto Refresh Functionality
+        let autoRefreshInterval = null;
+        let countdownInterval = null;
+        let isAutoRefreshActive = false;
+        let countdownSeconds = 30;
+        const REFRESH_INTERVAL = 30000; // 30 seconds in milliseconds
+        
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+        const autoRefreshIcon = document.getElementById('autoRefreshIcon');
+        const autoRefreshText = document.getElementById('autoRefreshText');
+        const countdownTime = document.getElementById('countdownTime');
+        
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            
+            isAutoRefreshActive = true;
+            autoRefreshIcon.classList.remove('fa-play');
+            autoRefreshIcon.classList.add('fa-pause');
+            autoRefreshText.textContent = 'Pause';
+            
+            // Reset countdown
+            countdownSeconds = 30;
+            countdownTime.textContent = countdownSeconds;
+            
+            // Start countdown
+            countdownInterval = setInterval(function() {
+                countdownSeconds--;
+                countdownTime.textContent = countdownSeconds;
+                
+                if (countdownSeconds <= 0) {
+                    countdownSeconds = 30;
+                }
+            }, 1000);
+            
+            // Start auto refresh
+            autoRefreshInterval = setInterval(function() {
+                if (isAutoRefreshActive) {
+                    window.location.reload();
+                }
+            }, REFRESH_INTERVAL);
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            
+            isAutoRefreshActive = false;
+            autoRefreshIcon.classList.remove('fa-pause');
+            autoRefreshIcon.classList.add('fa-play');
+            autoRefreshText.textContent = 'Play';
+            countdownTime.textContent = '--';
+        }
+        
+        // Toggle auto refresh
+        if (autoRefreshToggle) {
+            autoRefreshToggle.addEventListener('click', function() {
+                if (isAutoRefreshActive) {
+                    stopAutoRefresh();
+                } else {
+                    startAutoRefresh();
+                }
+            });
+        }
+        
+        // Start auto refresh by default
+        startAutoRefresh();
     </script>
     
     <!-- ODB Notifications Modal -->

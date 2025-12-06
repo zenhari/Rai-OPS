@@ -1,0 +1,152 @@
+[
+    {
+        "id": "log_69342de1e23833.73944771",
+        "flight_id": 582532,
+        "timestamp": "2025-12-06 16:51:37",
+        "user": {
+            "id": 1,
+            "name": "Admin User",
+            "username": "admin",
+            "role": "admin"
+        },
+        "changed_fields": [
+            "FlightID",
+            "Rego",
+            "LastUpdated"
+        ],
+        "changes": {
+            "FlightID": {
+                "old": "582743",
+                "new": "582744"
+            },
+            "Rego": {
+                "old": "EP-NEA",
+                "new": "EP-NEB"
+            },
+            "LastUpdated": {
+                "old": "2025-12-02 10:30:45",
+                "new": "2025-12-06 16:51:37"
+            }
+        }
+    },
+    {
+        "id": "log_692d832e320e38.99468531",
+        "flight_id": 582540,
+        "timestamp": "2025-12-01 15:29:42",
+        "user": {
+            "id": 1,
+            "name": "Admin User",
+            "username": "admin",
+            "role": "admin"
+        },
+        "changed_fields": [
+            "FlightID",
+            "LastUpdated",
+            "TaskStart"
+        ],
+        "changes": {
+            "FlightID": {
+                "old": "582757",
+                "new": "582758"
+            },
+            "LastUpdated": {
+                "old": "2025-12-01 15:29:05",
+                "new": "2025-12-01 15:29:42"
+            },
+            "TaskStart": {
+                "old": "2025-12-02 19:30:00",
+                "new": "2025-12-02 19:35:00"
+            }
+        }
+    },
+    {
+        "id": "log_692d8309ee2d23.18260494",
+        "flight_id": 582540,
+        "timestamp": "2025-12-01 15:29:05",
+        "user": {
+            "id": 1,
+            "name": "Admin User",
+            "username": "admin",
+            "role": "admin"
+        },
+        "changed_fields": [
+            "FlightID",
+            "LastUpdated",
+            "TaskStart"
+        ],
+        "changes": {
+            "FlightID": {
+                "old": "582756",
+                "new": "582757"
+            },
+            "LastUpdated": {
+                "old": "2025-12-01 15:28:33",
+                "new": "2025-12-01 15:29:05"
+            },
+            "TaskStart": {
+                "old": "2025-12-02 19:35:00",
+                "new": "2025-12-02 19:30:00"
+            }
+        }
+    },
+    {
+        "id": "log_692d82e9303424.49869508",
+        "flight_id": 582540,
+        "timestamp": "2025-12-01 15:28:33",
+        "user": {
+            "id": 1,
+            "name": "Admin User",
+            "username": "admin",
+            "role": "admin"
+        },
+        "changed_fields": [
+            "FlightID",
+            "LastUpdated",
+            "adult",
+            "child",
+            "infant",
+            "total_pax",
+            "pcs",
+            "weight",
+            "uplft_lbs"
+        ],
+        "changes": {
+            "FlightID": {
+                "old": "582754",
+                "new": "582756"
+            },
+            "LastUpdated": {
+                "old": "2025-12-01 14:09:46",
+                "new": "2025-12-01 15:28:33"
+            },
+            "adult": {
+                "old": null,
+                "new": "0.00"
+            },
+            "child": {
+                "old": null,
+                "new": "0.00"
+            },
+            "infant": {
+                "old": null,
+                "new": "0.00"
+            },
+            "total_pax": {
+                "old": null,
+                "new": "0"
+            },
+            "pcs": {
+                "old": null,
+                "new": "0.00"
+            },
+            "weight": {
+                "old": null,
+                "new": "0.00"
+            },
+            "uplft_lbs": {
+                "old": null,
+                "new": "0.00"
+            }
+        }
+    }
+]

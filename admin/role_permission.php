@@ -262,6 +262,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_recency_management_page':
+            $pagePath = 'admin/recency_management/index.php';
+            $pageName = 'Recency Management';
+            $requiredRoles = ['admin'];
+            $description = 'Manage recency items and configurations';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Recency Management page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Recency Management page permission.';
+                }
+            } else {
+                $message = 'Recency Management page permission already exists.';
+            }
+            break;
+
+        case 'add_set_recency_page':
+            $pagePath = 'admin/recency_management/set_recency.php';
+            $pageName = 'Set Recency\'s';
+            $requiredRoles = ['admin'];
+            $description = 'View and manage all recency items with department assignments';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Set Recency\'s page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Set Recency\'s page permission.';
+                }
+            } else {
+                $message = 'Set Recency\'s page permission already exists.';
+            }
+            break;
+
         case 'add_handover_page':
             $pagePath = 'admin/fleet/handover/index.php';
             $pageName = 'HandOver Management';
@@ -865,20 +899,156 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
-        case 'add_flight_log_page':
-            $pagePath = 'admin/full_log/flight_log.php';
-            $pageName = 'Flight Log';
+        case 'add_quiz_set_list_page':
+            $pagePath = 'admin/training/quiz/index.php';
+            $pageName = 'Quiz Set List';
             $requiredRoles = ['admin'];
-            $description = 'View all flight change logs and history with user information and field changes';
+            $description = 'View all quiz sets with statistics including question count, assignments, and attempts';
             $existingPermission = getPagePermission($pagePath);
             if (!$existingPermission) {
                 if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
-                    $message = 'Flight Log page permission added successfully.';
+                    $message = 'Quiz Set List page permission added successfully.';
                 } else {
-                    $error = 'Failed to add Flight Log page permission. Please check the database connection and try again.';
+                    $error = 'Failed to add Quiz Set List page permission. Please check the database connection and try again.';
                 }
             } else {
-                $message = 'Flight Log page permission already exists.';
+                $message = 'Quiz Set List page permission already exists.';
+            }
+            break;
+
+        case 'add_quiz_create_set_page':
+            $pagePath = 'admin/training/quiz/create_set.php';
+            $pageName = 'Create Quiz Set';
+            $requiredRoles = ['admin'];
+            $description = 'Create quiz sets by selecting questions from course and aircraft categories';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Create Quiz Set page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Create Quiz Set page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Create Quiz Set page permission already exists.';
+            }
+            break;
+
+        case 'add_quiz_assign_page':
+            $pagePath = 'admin/training/quiz/assign_quiz.php';
+            $pageName = 'Assign Quiz';
+            $requiredRoles = ['admin'];
+            $description = 'Assign quiz sets to specific users for training purposes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Assign Quiz page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Assign Quiz page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Assign Quiz page permission already exists.';
+            }
+            break;
+
+        case 'add_quiz_results_page':
+            $pagePath = 'admin/training/quiz/results.php';
+            $pageName = 'Quiz Results';
+            $requiredRoles = ['admin'];
+            $description = 'View quiz attempt results and scores for all users';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Quiz Results page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Quiz Results page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Quiz Results page permission already exists.';
+            }
+            break;
+
+        case 'add_my_quiz_page':
+            $pagePath = 'admin/profile/my_quiz.php';
+            $pageName = 'My Quiz';
+            $requiredRoles = ['admin', 'pilot', 'employee'];
+            $description = 'View and take assigned quizzes with timer and question navigation';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'My Quiz page permission added successfully.';
+                } else {
+                    $error = 'Failed to add My Quiz page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'My Quiz page permission already exists.';
+            }
+            break;
+
+        case 'add_issue_certificate_page':
+            $pagePath = 'admin/training/certificate/issue_certificate.php';
+            $pageName = 'Issue Certificate';
+            $requiredRoles = ['admin'];
+            $description = 'Issue training certificates and save to certificates table';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Issue Certificate page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Issue Certificate page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Issue Certificate page permission already exists.';
+            }
+            break;
+
+        case 'add_toolbox_page':
+            $pagePath = 'admin/fleet/toolbox/index.php';
+            $pageName = 'Toolbox';
+            $requiredRoles = ['admin'];
+            $description = 'Manage toolboxes and tools inventory';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Toolbox page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Toolbox page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Toolbox page permission already exists.';
+            }
+            break;
+
+        case 'add_toolbox_view_page':
+            $pagePath = 'admin/fleet/toolbox/view_box.php';
+            $pageName = 'View Box Contents';
+            $requiredRoles = ['admin', 'pilot', 'employee'];
+            $description = 'View box contents via QR code scan';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'View Box Contents page permission added successfully.';
+                } else {
+                    $error = 'Failed to add View Box Contents page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'View Box Contents page permission already exists.';
+            }
+            break;
+
+        case 'add_activity_log_page':
+            $pagePath = 'admin/full_log/activity_log.php';
+            $pageName = 'Activity Log';
+            $requiredRoles = ['admin'];
+            $description = 'View all user activities, page views, and data changes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Activity Log page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Activity Log page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Activity Log page permission already exists.';
             }
             break;
             
@@ -912,7 +1082,8 @@ function findSidebarLocation($pagePath) {
         'ODB Notifications' => ['admin/odb/list.php'],
         'Profile' => ['admin/profile/'],
         'Transport' => ['admin/transport/'],
-        'Messages' => ['admin/messages/']
+        'Messages' => ['admin/messages/'],
+        'Training' => ['admin/training/']
     ];
     
     foreach ($patterns as $menuName => $paths) {
@@ -1543,6 +1714,12 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addCertificatePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-certificate mr-2"></i>Certificate
                         </button>
+                        <button onclick="addRecencyManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-cog mr-2"></i>Recency Management
+                        </button>
+                        <button onclick="addSetRecencyPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-list-check mr-2"></i>Set Recency's
+                        </button>
                         <button onclick="addHandoverPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-exchange-alt mr-2"></i>HandOver
                         </button>
@@ -1650,8 +1827,32 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addContactsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-address-book mr-2"></i>Contacts
                         </button>
-                        <button onclick="addFlightLogPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
-                            <i class="fas fa-history mr-2"></i>Flight Log
+                        <button onclick="addQuizSetListPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-list mr-2"></i>Quiz Set List
+                        </button>
+                        <button onclick="addQuizCreateSetPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-graduation-cap mr-2"></i>Create Quiz Set
+                        </button>
+                        <button onclick="addQuizAssignPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-user-check mr-2"></i>Assign Quiz
+                        </button>
+                        <button onclick="addQuizResultsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-chart-bar mr-2"></i>Quiz Results
+                        </button>
+                        <button onclick="addMyQuizPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-question-circle mr-2"></i>My Quiz
+                        </button>
+                        <button onclick="addIssueCertificatePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-certificate mr-2"></i>Issue Certificate
+                        </button>
+                        <button onclick="addToolboxPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-toolbox mr-2"></i>Toolbox
+                        </button>
+                        <button onclick="addToolboxViewPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-qrcode mr-2"></i>View Box Contents
+                        </button>
+                        <button onclick="addActivityLogPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-user-clock mr-2"></i>Activity Log
                         </button>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700 my-2 md:col-span-2"></div>
@@ -2176,6 +2377,40 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_certificate_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addRecencyManagementPage() {
+            if (confirm('Add Recency Management page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_recency_management_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addSetRecencyPage() {
+            if (confirm('Add Set Recency\'s page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_set_recency_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
@@ -2777,8 +3012,8 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
-        function addFlightLogPage() {
-            if (confirm('Add Flight Log page permission with admin role?')) {
+        function addQuizSetListPage() {
+            if (confirm('Add Quiz Set List page permission with admin role?')) {
                 const button = event.target;
                 const originalText = button.innerHTML;
                 button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
@@ -2787,7 +3022,143 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.innerHTML = `
-                    <input type="hidden" name="action" value="add_flight_log_page">
+                    <input type="hidden" name="action" value="add_quiz_set_list_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addQuizCreateSetPage() {
+            if (confirm('Add Create Quiz Set page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_quiz_create_set_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addQuizAssignPage() {
+            if (confirm('Add Assign Quiz page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_quiz_assign_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addQuizResultsPage() {
+            if (confirm('Add Quiz Results page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_quiz_results_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addMyQuizPage() {
+            if (confirm('Add My Quiz page permission with admin, pilot, and employee roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_my_quiz_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addIssueCertificatePage() {
+            if (confirm('Add Issue Certificate page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_issue_certificate_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addToolboxPage() {
+            if (confirm('Add Toolbox page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_toolbox_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addToolboxViewPage() {
+            if (confirm('Add View Box Contents page permission with admin, pilot, and employee roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_toolbox_view_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addActivityLogPage() {
+            if (confirm('Add Activity Log page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_activity_log_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

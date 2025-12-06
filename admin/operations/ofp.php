@@ -11,6 +11,11 @@ $selected_date = isset($_GET['date']) && !empty($_GET['date']) ? $_GET['date'] :
 $selected_route = isset($_GET['route']) ? trim($_GET['route']) : '';
 $selected_hour = isset($_GET['hour']) && $_GET['hour'] !== '' ? intval($_GET['hour']) : null;
 
+// Pagination parameters
+$page = isset($_GET['page']) && $_GET['page'] > 0 ? intval($_GET['page']) : 1;
+$per_page = isset($_GET['per_page']) && $_GET['per_page'] > 0 ? intval($_GET['per_page']) : 50; // Default 50 records per page
+$offset = ($page - 1) * $per_page;
+
 // Log directory path
 $log_dir = __DIR__ . '/../../skyputer/logs/';
 
@@ -43,9 +48,10 @@ function getOFPLogFiles($log_dir) {
 }
 
 /**
- * Load and parse OFP data from JSON files
+ * Load and parse OFP data from JSON files with pagination support
+ * Returns array with 'data' (paginated records) and 'total' (total count)
  */
-function loadOFPData($log_dir, $filter_date = null, $filter_route = null, $filter_hour = null) {
+function loadOFPData($log_dir, $filter_date = null, $filter_route = null, $filter_hour = null, $offset = 0, $limit = null) {
     $all_data = [];
     $files = getOFPLogFiles($log_dir);
     
@@ -156,7 +162,130 @@ function loadOFPData($log_dir, $filter_date = null, $filter_route = null, $filte
         return $time_b - $time_a;
     });
     
-    return $all_data;
+    $total = count($all_data);
+    
+    // Apply pagination if limit is specified
+    if ($limit !== null && $limit > 0) {
+        $all_data = array_slice($all_data, $offset, $limit);
+    }
+    
+    return [
+        'data' => $all_data,
+        'total' => $total
+    ];
+}
+
+/**
+ * Get unique routes without loading all data (memory efficient)
+ */
+function getUniqueRoutes($log_dir, $max_files = 100) {
+    $unique_routes = [];
+    $files = getOFPLogFiles($log_dir);
+    $processed = 0;
+    
+    foreach ($files as $file_info) {
+        if ($max_files > 0 && $processed >= $max_files) {
+            break;
+        }
+        
+        $file_path = $file_info['path'];
+        $content = @file_get_contents($file_path);
+        if ($content === false) {
+            continue;
+        }
+        
+        $json_data = @json_decode($content, true);
+        if (!is_array($json_data)) {
+            continue;
+        }
+        
+        foreach ($json_data as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+            
+            $route = '';
+            if (isset($record['parsed_data']['binfo']['RTS'])) {
+                $route = $record['parsed_data']['binfo']['RTS'];
+            } elseif (isset($record['parsed_data']['binfo']['|RTS'])) {
+                $route = $record['parsed_data']['binfo']['|RTS'];
+            } elseif (isset($record['flight_info']['route'])) {
+                $route = $record['flight_info']['route'];
+            }
+            
+            if (!empty($route) && !in_array($route, $unique_routes)) {
+                $unique_routes[] = $route;
+            }
+        }
+        
+        $processed++;
+    }
+    
+    sort($unique_routes);
+    return $unique_routes;
+}
+
+/**
+ * Get unique dates without loading all data (memory efficient)
+ */
+function getUniqueDates($log_dir, $max_files = 100) {
+    $unique_dates = [];
+    $files = getOFPLogFiles($log_dir);
+    $processed = 0;
+    
+    foreach ($files as $file_info) {
+        if ($max_files > 0 && $processed >= $max_files) {
+            break;
+        }
+        
+        $file_path = $file_info['path'];
+        $content = @file_get_contents($file_path);
+        if ($content === false) {
+            continue;
+        }
+        
+        $json_data = @json_decode($content, true);
+        if (!is_array($json_data)) {
+            continue;
+        }
+        
+        foreach ($json_data as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+            
+            $record_date = '';
+            if (isset($record['flight_info']['date'])) {
+                $record_date = $record['flight_info']['date'];
+            } elseif (isset($record['parsed_data']['binfo']['DTE'])) {
+                $record_date = $record['parsed_data']['binfo']['DTE'];
+            } elseif (isset($record['parsed_data']['binfo']['|DTE'])) {
+                $record_date = $record['parsed_data']['binfo']['|DTE'];
+            }
+            
+            // Convert date format if needed
+            if ($record_date && preg_match('/(\w+)\s+(\d+)\s+(\d+)/', $record_date, $date_matches)) {
+                $month_map = [
+                    'JAN' => '01', 'FEB' => '02', 'MAR' => '03', 'APR' => '04',
+                    'MAY' => '05', 'JUN' => '06', 'JUL' => '07', 'AUG' => '08',
+                    'SEP' => '09', 'OCT' => '10', 'NOV' => '11', 'DEC' => '12'
+                ];
+                $month = strtoupper(substr($date_matches[1], 0, 3));
+                if (isset($month_map[$month])) {
+                    $record_date = $date_matches[3] . '-' . $month_map[$month] . '-' . str_pad($date_matches[2], 2, '0', STR_PAD_LEFT);
+                }
+            }
+            
+            if (!empty($record_date) && !in_array($record_date, $unique_dates)) {
+                $unique_dates[] = $record_date;
+            }
+        }
+        
+        $processed++;
+    }
+    
+    rsort($unique_dates);
+    return $unique_dates;
 }
 
 // OFP Field Labels Mapping
@@ -275,28 +404,17 @@ function formatCoordinates($geo) {
     return $geo;
 }
 
-// Load OFP data with filters
-$ofp_data = loadOFPData($log_dir, $selected_date, $selected_route, $selected_hour);
+// Load OFP data with filters and pagination
+$ofp_result = loadOFPData($log_dir, $selected_date, $selected_route, $selected_hour, $offset, $per_page);
+$ofp_data = $ofp_result['data'];
+$total_records = $ofp_result['total'];
+$total_pages = ceil($total_records / $per_page);
 
-// Get unique routes for filter dropdown
-$unique_routes = [];
-$all_data_for_routes = loadOFPData($log_dir);
-foreach ($all_data_for_routes as $item) {
-    if (!empty($item['route']) && !in_array($item['route'], $unique_routes)) {
-        $unique_routes[] = $item['route'];
-    }
-}
-sort($unique_routes);
+// Get unique routes for filter dropdown (memory efficient - only process first 100 files)
+$unique_routes = getUniqueRoutes($log_dir, 100);
 
-// Get available dates for filter
-$available_dates = [];
-$all_data_for_dates = loadOFPData($log_dir);
-foreach ($all_data_for_dates as $item) {
-    if (!empty($item['date']) && !in_array($item['date'], $available_dates)) {
-        $available_dates[] = $item['date'];
-    }
-}
-rsort($available_dates);
+// Get available dates for filter (memory efficient - only process first 100 files)
+$available_dates = getUniqueDates($log_dir, 100);
 ?>
 
 <!DOCTYPE html>
@@ -339,7 +457,7 @@ rsort($available_dates);
 
             <!-- Filters -->
             <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
-                <form method="GET" action="" class="flex flex-wrap items-end gap-4">
+                <form method="GET" action="" class="flex flex-wrap items-end gap-4" onsubmit="document.querySelector('[name=page]').value = '1';">
                     <!-- Date Filter -->
                     <div class="flex-1 min-w-[200px]">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -390,10 +508,25 @@ rsort($available_dates);
                     </div>
                 </form>
                 
-                <!-- Results Count -->
-                <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Found <strong><?php echo count($ofp_data); ?></strong> OFP record(s)
+                <!-- Results Count and Pagination Info -->
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Showing <strong><?php echo count($ofp_data); ?></strong> of <strong><?php echo $total_records; ?></strong> OFP record(s)
+                        <?php if ($total_pages > 1): ?>
+                            (Page <?php echo $page; ?> of <?php echo $total_pages; ?>)
+                        <?php endif; ?>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-700 dark:text-gray-300">Records per page:</label>
+                        <select name="per_page" onchange="document.querySelector('[name=page]').value = '1'; this.form.submit();" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm">
+                            <option value="25" <?php echo $per_page == 25 ? 'selected' : ''; ?>>25</option>
+                            <option value="50" <?php echo $per_page == 50 ? 'selected' : ''; ?>>50</option>
+                            <option value="100" <?php echo $per_page == 100 ? 'selected' : ''; ?>>100</option>
+                            <option value="200" <?php echo $per_page == 200 ? 'selected' : ''; ?>>200</option>
+                        </select>
+                        <input type="hidden" name="page" value="<?php echo $page; ?>">
+                    </div>
                 </div>
             </div>
 
@@ -494,6 +627,116 @@ rsort($available_dates);
                                 </tbody>
                             </table>
                         </div>
+                        
+                        <!-- Pagination Controls -->
+                        <?php if ($total_pages > 1): ?>
+                            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-600 sm:px-6">
+                                <div class="flex-1 flex justify-between sm:hidden">
+                                    <?php if ($page > 1): ?>
+                                        <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" 
+                                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            Previous
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 cursor-not-allowed">
+                                            Previous
+                                        </span>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($page < $total_pages): ?>
+                                        <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" 
+                                           class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            Next
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 cursor-not-allowed">
+                                            Next
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-700 dark:text-gray-300">
+                                            Showing <span class="font-medium"><?php echo $offset + 1; ?></span> to 
+                                            <span class="font-medium"><?php echo min($offset + $per_page, $total_records); ?></span> of 
+                                            <span class="font-medium"><?php echo $total_records; ?></span> results
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                            <?php if ($page > 1): ?>
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" 
+                                                   class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    <span class="sr-only">Previous</span>
+                                                    <i class="fas fa-chevron-left"></i>
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed">
+                                                    <span class="sr-only">Previous</span>
+                                                    <i class="fas fa-chevron-left"></i>
+                                                </span>
+                                            <?php endif; ?>
+                                            
+                                            <?php
+                                            // Show page numbers (max 7 pages around current page)
+                                            $start_page = max(1, $page - 3);
+                                            $end_page = min($total_pages, $page + 3);
+                                            
+                                            if ($start_page > 1): ?>
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>" 
+                                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    1
+                                                </a>
+                                                <?php if ($start_page > 2): ?>
+                                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        ...
+                                                    </span>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                            
+                                            <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                                                <?php if ($i == $page): ?>
+                                                    <span aria-current="page" class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                        <?php echo $i; ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>" 
+                                                       class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                        <?php echo $i; ?>
+                                                    </a>
+                                                <?php endif; ?>
+                                            <?php endfor; ?>
+                                            
+                                            <?php if ($end_page < $total_pages): ?>
+                                                <?php if ($end_page < $total_pages - 1): ?>
+                                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        ...
+                                                    </span>
+                                                <?php endif; ?>
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>" 
+                                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    <?php echo $total_pages; ?>
+                                                </a>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($page < $total_pages): ?>
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" 
+                                                   class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    <span class="sr-only">Next</span>
+                                                    <i class="fas fa-chevron-right"></i>
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed">
+                                                    <span class="sr-only">Next</span>
+                                                    <i class="fas fa-chevron-right"></i>
+                                                </span>
+                                            <?php endif; ?>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </main>

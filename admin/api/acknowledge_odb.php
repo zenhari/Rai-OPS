@@ -16,16 +16,24 @@ require_once '../../config.php';
 ob_clean();
 
 try {
-    // Check access for API endpoint
-    if (!checkPageAccessEnhanced('admin/odb/list.php')) {
+    // Check if user is logged in (any logged-in user can acknowledge their own notifications)
+    if (!isLoggedIn()) {
         http_response_code(401);
         ob_clean();
-        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        echo json_encode(['success' => false, 'message' => 'Access denied - Please log in']);
         ob_end_flush();
         exit();
     }
 
     $current_user = getCurrentUser();
+    
+    if (!$current_user) {
+        http_response_code(401);
+        ob_clean();
+        echo json_encode(['success' => false, 'message' => 'Access denied - User not found']);
+        ob_end_flush();
+        exit();
+    }
 
     // Handle POST request
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {

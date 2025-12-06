@@ -20,126 +20,87 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $mobile = trim($_GET['mobile'] ?? '');
     $courseName = trim($_GET['coursename'] ?? '');
     
-    // Handle refresh request
+    // Handle refresh request (no longer needed with database, but kept for compatibility)
     if (isset($_GET['refresh']) && $_GET['refresh'] == '1') {
-        unset($_SESSION['certificate_data']);
-        unset($_SESSION['certificate_data_time']);
         $message = 'Data refreshed successfully.';
     }
     
-    // Fetch all certificate data from external API (without filters)
-    // Use session to cache data for better performance
-    if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['certificate_data_time']) || (time() - $_SESSION['certificate_data_time']) > 300) {
-        // Cache for 5 minutes
-        $_SESSION['certificate_data'] = fetchCertificateData();
-        $_SESSION['certificate_data_time'] = time();
-    }
-    $allCertificateData = $_SESSION['certificate_data'];
+    // Fetch certificate data from database
+    $db = getDBConnection();
     
-    if ($allCertificateData === false) {
-        $error = 'Failed to fetch certificate data from external API.';
-    } elseif (empty($allCertificateData['data'])) {
-        $message = 'No certificate data found.';
+    // Build WHERE clause for filters
+    $whereConditions = [];
+    $params = [];
+    
+    if (!empty($nationalId)) {
+        $whereConditions[] = "nationalid LIKE :nationalid";
+        $params[':nationalid'] = "%{$nationalId}%";
+    }
+    
+    if (!empty($mobile)) {
+        $whereConditions[] = "mobile LIKE :mobile";
+        $params[':mobile'] = "%{$mobile}%";
+    }
+    
+    if (!empty($courseName)) {
+        $whereConditions[] = "coursename LIKE :coursename";
+        $params[':coursename'] = "%{$courseName}%";
+    }
+    
+    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+    
+    // Get total count
+    $countStmt = $db->prepare("SELECT COUNT(*) as total FROM certificates {$whereClause}");
+    foreach ($params as $key => $value) {
+        $countStmt->bindValue($key, $value, PDO::PARAM_STR);
+    }
+    $countStmt->execute();
+    $totalRecords = intval($countStmt->fetch(PDO::FETCH_ASSOC)['total']);
+    $totalPages = ceil($totalRecords / $recordsPerPage);
+    
+    // Get paginated data
+    $offset = ($currentPage - 1) * $recordsPerPage;
+    $sql = "SELECT * FROM certificates {$whereClause} ORDER BY id DESC LIMIT :limit OFFSET :offset";
+    $stmt = $db->prepare($sql);
+    
+    // Bind filter parameters
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value, PDO::PARAM_STR);
+    }
+    
+    // Bind limit and offset
+    $stmt->bindValue(':limit', $recordsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $certificates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if ($totalRecords == 0) {
+        $message = 'No certificate data found for the selected filters.';
     } else {
-        // Apply local filters to the data
-        $filteredData = applyLocalFilters($allCertificateData['data'], $nationalId, $mobile, $courseName);
-        
-        $totalRecords = count($filteredData);
-        $totalPages = ceil($totalRecords / $recordsPerPage);
-        
-        // Apply pagination to filtered data
-        $startIndex = ($currentPage - 1) * $recordsPerPage;
-        $certificateData = [
-            'status' => $allCertificateData['status'],
-            'count' => $totalRecords,
-            'data' => array_slice($filteredData, $startIndex, $recordsPerPage)
-        ];
-        
-        if ($totalRecords == 0) {
-            $message = 'No certificate data found for the selected filters.';
-        } else {
-            $message = "Found {$totalRecords} certificate(s). Showing page {$currentPage} of {$totalPages}.";
-        }
+        $message = "Found {$totalRecords} certificate(s). Showing page {$currentPage} of {$totalPages}.";
     }
+    
+    $certificateData = [
+        'status' => 'ok',
+        'count' => $totalRecords,
+        'data' => $certificates
+    ];
 }
 
-function fetchCertificateData() {
-    $url = 'https://portal.raimonairways.net/api/cer_api.php?token=f35c82b4-de5a-4192-8ef6-6aeceb3875d0';
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-    
-    if ($curlError) {
-        error_log("Certificate API cURL Error: " . $curlError);
-        return false;
+function getCourseTypes() {
+    global $db;
+    if (!isset($db)) {
+        $db = getDBConnection();
     }
     
-    if ($httpCode !== 200) {
-        error_log("Certificate API HTTP Error: " . $httpCode);
-        return false;
-    }
-    
-    $decodedResponse = json_decode($response, true);
-    
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("Certificate API JSON Error: " . json_last_error_msg());
-        return false;
-    }
-    
-    if (!$decodedResponse || !isset($decodedResponse['status']) || $decodedResponse['status'] !== 'ok') {
-        error_log("Certificate API Response Error: " . $response);
-        return false;
-    }
-    
-    return $decodedResponse;
-}
-
-function applyLocalFilters($data, $nationalId = '', $mobile = '', $courseName = '') {
-    if (empty($data)) {
+    try {
+        $stmt = $db->query("SELECT DISTINCT coursename FROM certificates WHERE coursename IS NOT NULL AND coursename != '' ORDER BY coursename");
+        $courses = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return array_combine($courses, $courses);
+    } catch (PDOException $e) {
+        error_log("Error fetching course types: " . $e->getMessage());
         return [];
     }
-    
-    $filteredData = [];
-    
-    foreach ($data as $certificate) {
-        $include = true;
-        
-        // Filter by National ID
-        if (!empty($nationalId)) {
-            if (stripos($certificate['nationalid'] ?? '', $nationalId) === false) {
-                $include = false;
-            }
-        }
-        
-        // Filter by Mobile
-        if (!empty($mobile) && $include) {
-            if (stripos($certificate['mobile'] ?? '', $mobile) === false) {
-                $include = false;
-            }
-        }
-        
-        // Filter by Course Name
-        if (!empty($courseName) && $include) {
-            if (stripos($certificate['coursename'] ?? '', $courseName) === false) {
-                $include = false;
-            }
-        }
-        
-        if ($include) {
-            $filteredData[] = $certificate;
-        }
-    }
-    
-    return $filteredData;
 }
 
 function safeOutput($value) {
@@ -151,19 +112,6 @@ function formatDate($date) {
     return date('M j, Y', strtotime($date));
 }
 
-function getCourseTypes() {
-    // This would typically come from the API or database
-    // For now, returning common course types
-    return [
-        'BPMS' => 'BPMS',
-        'CRM' => 'CRM',
-        'DGR' => 'DGR',
-        'AVSEC' => 'AVSEC',
-        'FIRE' => 'FIRE',
-        'MEDICAL' => 'MEDICAL',
-        'SAFETY' => 'SAFETY'
-    ];
-}
 ?>
 
 <!DOCTYPE html>
@@ -268,10 +216,6 @@ function getCourseTypes() {
                                 <i class="fas fa-search mr-2"></i>
                                 Search Certificates
                             </button>
-                            <a href="?refresh=1" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                                <i class="fas fa-sync mr-2"></i>
-                                Refresh Data
-                            </a>
                             <a href="?" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
                                 <i class="fas fa-refresh mr-2"></i>
                                 Clear Filters
@@ -363,7 +307,7 @@ function getCourseTypes() {
                                     <?php else: ?>
                                         <?php foreach ($certificateData['data'] as $certificate): ?>
                                             <?php 
-                                            $certificateImageUrl = "https://portal.raimonairways.net/raimon-cer/cer/" . safeOutput($certificate['certificateno']) . ".jpg";
+                                            $certificateImageUrl = base_url() . "admin/users/certificate/cer/" . safeOutput($certificate['certificateno']) . ".jpg";
                                             ?>
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                 <td class="px-4 py-4 whitespace-nowrap">
@@ -491,8 +435,7 @@ function getCourseTypes() {
                         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Certificate Data</h3>
                         <p class="text-gray-500 dark:text-gray-400 mb-6">Use the filters above to search for certificates or click "Search Certificates" to load all data.</p>
                         <div class="text-sm text-gray-400 dark:text-gray-500">
-                            <p>Certificate data is fetched from external API:</p>
-                            <p class="font-mono">https://portal.raimonairways.net/api/cer_api.php</p>
+                            <p>Certificate data is loaded from the local database.</p>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -553,7 +496,7 @@ function getCourseTypes() {
             const content = document.getElementById('certificateDetailsContent');
             
             // Generate certificate image URL
-            const certificateImageUrl = `https://portal.raimonairways.net/raimon-cer/cer/${certificate.certificateno}.jpg`;
+            const certificateImageUrl = `<?php echo base_url(); ?>admin/users/certificate/cer/${certificate.certificateno}.jpg`;
             
             const details = `
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

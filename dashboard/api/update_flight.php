@@ -108,7 +108,69 @@ if (empty($data)) {
     exit();
 }
 
+// Get old flight data for comparison before update
+$oldFlightData = getFlightById($flight_id);
+
 if (updateFlight($flight_id, $data)) {
+    // Get new flight data for comparison
+    $newFlightData = getFlightById($flight_id);
+    
+    // Collect ALL changes for Activity Log
+    $changes = [];
+    
+    // Get all fields that were updated (from $data array)
+    $updatedFields = array_keys($data);
+    
+    // Also check all fields from old and new data to catch any changes
+    $allFields = array_unique(array_merge(array_keys($oldFlightData), array_keys($newFlightData)));
+    
+    foreach ($allFields as $field) {
+        // Skip internal/system fields
+        if (in_array($field, ['id', 'LastUpdated', 'created_at', 'updated_at'])) {
+            continue;
+        }
+        
+        $oldValue = $oldFlightData[$field] ?? null;
+        $newValue = $newFlightData[$field] ?? null;
+        
+        // Normalize values for comparison
+        $oldNormalized = ($oldValue === null || $oldValue === '') ? null : $oldValue;
+        $newNormalized = ($newValue === null || $newValue === '') ? null : $newValue;
+        
+        // Check if value actually changed
+        if ($oldNormalized != $newNormalized) {
+            // Format values for display
+            $oldDisplay = ($oldValue === null || $oldValue === '') ? '(empty)' : (string)$oldValue;
+            $newDisplay = ($newValue === null || $newValue === '') ? '(empty)' : (string)$newValue;
+            
+            $changes[] = [
+                'field' => $field,
+                'old' => $oldDisplay,
+                'new' => $newDisplay
+            ];
+        }
+    }
+    
+    // Log activity
+    if (!empty($changes)) {
+        logActivity('update', __FILE__, [
+            'page_name' => 'Dashboard - Edit Flight',
+            'section' => 'Flight Timeline',
+            'record_id' => $flight_id,
+            'record_type' => 'flight',
+            'changes' => $changes
+        ]);
+    } else {
+        // Log even if no visible changes
+        logActivity('update', __FILE__, [
+            'page_name' => 'Dashboard - Edit Flight',
+            'section' => 'Flight Timeline',
+            'record_id' => $flight_id,
+            'record_type' => 'flight',
+            'new_value' => 'Flight updated (no field changes detected)'
+        ]);
+    }
+    
     http_response_code(200);
     echo json_encode(['success' => true, 'message' => 'Flight updated successfully']);
 } else {
