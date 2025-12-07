@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $pageName = 'Airsar Report (ETL)';
             $requiredRoles = ['admin'];
             $description = 'Airsar Report from ETL system - Operations data with flight details, crew, and task information';
-            
+
             // Check if page already exists
             $existingPermission = getPagePermission($pagePath);
             if (!$existingPermission) {
@@ -193,6 +193,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } else {
                 $message = 'Airsar Report (ETL) page permission already exists.';
+            }
+            break;
+            
+        case 'add_dispatch_handover_page':
+            $pagePath = 'admin/dispatch/webform/index.php';
+            $pageName = 'Dispatch Handover';
+            $requiredRoles = ['admin'];
+            $description = 'Dispatch handover form for flight operations - Pre-flight and post-flight checklist';
+
+            // Check if page already exists
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Dispatch Handover page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Dispatch Handover page permission.';
+                }
+            } else {
+                $message = 'Dispatch Handover page permission already exists.';
             }
             break;
 
@@ -1075,7 +1094,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $classPages = [
                 ['path' => 'admin/training/class/index.php', 'name' => 'Class Management', 'description' => 'View and manage training classes, schedules, and assignments'],
                 ['path' => 'admin/training/class/create.php', 'name' => 'Create Class', 'description' => 'Create new training class with schedules and assignments'],
-                ['path' => 'admin/training/class/edit.php', 'name' => 'Edit Class', 'description' => 'Edit existing training class information']
+                ['path' => 'admin/training/class/edit.php', 'name' => 'Edit Class', 'description' => 'Edit existing training class information'],
+                ['path' => 'admin/training/class/view.php', 'name' => 'View Class Attendance', 'description' => 'View class details and attendance list']
             ];
             
             $added = 0;
@@ -1762,6 +1782,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addAirsarReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-file-chart-line mr-2"></i>Airsar Report (ETL)
                         </button>
+                        <button onclick="addDispatchHandoverPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-clipboard-check mr-2"></i>Dispatch Handover
+                        </button>
                         <button onclick="addEFBPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-briefcase mr-2"></i>EFB
                         </button>
@@ -2380,6 +2403,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_airsar_report_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addDispatchHandoverPage() {
+            if (confirm('Add Dispatch Handover page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_dispatch_handover_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

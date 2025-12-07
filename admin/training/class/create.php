@@ -17,6 +17,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $db->query("SELECT id, display_name FROM roles WHERE is_active = 1 ORDER BY display_name");
 $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Get all existing locations from classes table (distinct, non-empty values)
+$stmt = $db->query("SELECT DISTINCT location FROM classes WHERE location IS NOT NULL AND location != '' ORDER BY location");
+$existingLocations = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
 // Days of week
 $daysOfWeek = [
     'saturday' => 'Saturday',
@@ -234,9 +238,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Location
                                 </label>
-                                <input type="text" name="location"
+                                <input type="text" name="location" id="location-input" list="location-list"
                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                       value="<?php echo htmlspecialchars($_POST['location'] ?? ''); ?>">
+                                       value="<?php echo htmlspecialchars($_POST['location'] ?? ''); ?>"
+                                       placeholder="Type or select a location">
+                                <datalist id="location-list">
+                                    <?php foreach ($existingLocations as $loc): ?>
+                                        <option value="<?php echo htmlspecialchars($loc); ?>">
+                                    <?php endforeach; ?>
+                                </datalist>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Type a new location or select from existing ones</p>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

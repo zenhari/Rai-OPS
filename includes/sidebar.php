@@ -219,6 +219,26 @@ function getAbsolutePath($path) {
                 </div>
             </div>
 
+            <!-- Dispatch -->
+            <div class="space-y-1">
+                <button id="dispatch-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
+                    <div class="flex items-center">
+                        <i class="fas fa-paper-plane mr-3 text-lg"></i>
+                        Dispatch
+                    </div>
+                    <i id="dispatch-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
+                </button>
+                <div id="dispatch-menu" class="hidden pl-6 space-y-1">
+                    <?php if (checkPageAccessEnhanced('admin/dispatch/webform/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/dispatch/webform/index.php'); ?>"
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'webform' || ($current_dir == 'dispatch' && $current_page == 'index')) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-clipboard-check mr-3 text-sm"></i>
+                        Dispatch Handover
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <!-- Flight Management -->
             <div class="space-y-1">
                 <button id="flight-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
@@ -1045,10 +1065,14 @@ document.addEventListener('DOMContentLoaded', function() {
         trainingToggle.addEventListener('click', () => toggleMenu(trainingMenu, trainingArrow));
     }
 
+    if (dispatchToggle) {
+        dispatchToggle.addEventListener('click', () => toggleMenu(dispatchMenu, dispatchArrow));
+    }
+
     // Function to close all menus
     function closeAllMenus() {
-        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, trainingMenu];
-        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, trainingArrow];
+        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, trainingMenu, dispatchMenu];
+        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, trainingArrow, dispatchArrow];
         
         allMenus.forEach(menu => {
             if (menu) menu.classList.add('hidden');
@@ -1139,6 +1163,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-open Training menu if on training pages
     else if (currentDir === 'training' || currentDir === 'quiz' || currentDir === 'certificate' || currentDir === 'class') {
         openMenu(trainingMenu, trainingArrow);
+    }
+    
+    // Auto-open Dispatch menu if on dispatch pages
+    else if (currentDir === 'dispatch' || currentDir === 'webform') {
+        openMenu(dispatchMenu, dispatchArrow);
     }
     
     // Auto-open My RIOPS menu if on profile pages or my_quiz
