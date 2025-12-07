@@ -8,6 +8,10 @@ if (!isLoggedIn()) {
 }
 
 $user = getCurrentUser();
+if (!$user || !is_array($user)) {
+    header('Location: /login.php');
+    exit();
+}
 
 // Log page view
 logActivity('view', __FILE__, [
@@ -320,8 +324,23 @@ try {
         }
         
         .timeline-row {
-            overflow: hidden;
+            overflow: visible;
             position: relative;
+            display: flex;
+        }
+        
+        .aircraft-label-sticky {
+            position: sticky;
+            left: 0;
+            z-index: 100;
+            background-color: rgb(249, 250, 251); /* bg-gray-50 */
+            border-right: 1px solid rgb(229, 231, 235); /* border-gray-200 */
+            min-width: 128px;
+        }
+        
+        .dark .aircraft-label-sticky {
+            background-color: rgb(31, 41, 55); /* dark:bg-gray-700 */
+            border-right-color: rgb(55, 65, 81); /* dark:border-gray-600 */
         }
         
         /* Horizontal grid lines - dynamically calculated based on max flights per day */
@@ -1329,7 +1348,7 @@ try {
                                 Dashboard
                             </h1>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                Welcome back, <?php echo htmlspecialchars($user['first_name']); ?>!
+                                Welcome back, <?php echo htmlspecialchars($user['first_name'] ?? 'User'); ?>!
                             </p>
                         </div>
                         
@@ -1539,9 +1558,9 @@ try {
                                         $aircraftMaxFlightsPerDay = 1;
                                     }
                                     
-                                    // Calculate height based on max flights per day for this aircraft (not total flights)
-                                    // 32px bar height + 2px spacing + 14px time labels + 2px bottom spacing = 50px per flight
-                                    $min_row_height = 6 + (32 + 2 + 14 + 2) + (($aircraftMaxFlightsPerDay - 1) * 50) + 30 + 8;
+                                    // Calculate height for single row (all flights in one row)
+                                    // 6px top + 32px bar + 2px spacing + 14px time labels + 2px bottom + 8px padding = 64px total
+                                    $min_row_height = 6 + 32 + 2 + 14 + 2 + 8;
                                     
                                     // Group flights by date for vertical positioning
                                     // Each day's flights start from row 1 (index 0)
@@ -1577,26 +1596,21 @@ try {
                                         $flightsByDateForAircraft[$flightDate][] = $flight;
                                     }
                                 ?>
-                                    <div class="flex mb-2" style="min-width: <?php echo ($totalHours * 120) + 128; ?>px;">
-                                        <!-- Aircraft Label -->
-                                        <div class="w-32 flex-shrink-0 flex items-center">
-                                            <span class="text-sm font-medium text-gray-900 dark:text-white">
-                                                <?php echo htmlspecialchars($aircraft_rego); ?>
-                                            </span>
-                                        </div>
-                                        
+                                    <div class="flex mb-2 relative" style="min-width: <?php echo ($totalHours * 120) + 128; ?>px;">
                                         <!-- Timeline Row -->
                                         <div class="timeline-row flex-1 relative bg-gray-50 dark:bg-gray-700 rounded" style="min-height: <?php echo $min_row_height; ?>px; width: <?php echo $totalHours * 120; ?>px;">
-                                            <!-- Horizontal Grid Lines - Based on max flights per day for this aircraft -->
+                                            <!-- Aircraft Label - Sticky to stay visible during horizontal scroll -->
+                                            <div class="aircraft-label-sticky w-32 flex-shrink-0 flex items-center justify-center bg-gray-50 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600" style="position: sticky; left: 0; z-index: 100; height: <?php echo $min_row_height; ?>px;">
+                                                <span class="text-sm font-medium text-gray-900 dark:text-white px-2">
+                                                    <?php echo htmlspecialchars($aircraft_rego); ?>
+                                                </span>
+                                            </div>
+                                            <!-- Timeline Content Container -->
+                                            <div class="flex-1 relative" style="min-width: <?php echo $totalHours * 120; ?>px;">
+                                            <!-- Horizontal Grid Lines - Single row for all flights -->
                                             <div class="timeline-row-grid">
-                                                <?php 
-                                                // Generate horizontal grid lines based on max flights per day for this specific aircraft
-                                                // Each line is at 50px intervals (6px top + 32px bar + 2px gap + 14px time + 2px bottom)
-                                                for ($i = 0; $i < $aircraftMaxFlightsPerDay; $i++): 
-                                                    $lineTop = 6 + ($i * 50); // 6px top offset + 50px per flight
-                                                ?>
-                                                    <div class="horizontal-grid-line" style="top: <?php echo $lineTop; ?>px;"></div>
-                                                <?php endfor; ?>
+                                                <!-- Single grid line for the one row -->
+                                                <div class="horizontal-grid-line" style="top: 6px;"></div>
                                             </div>
                                             
                                             <!-- Day Boundary Lines (Vertical) - Separates different days -->
@@ -1633,10 +1647,17 @@ try {
                                             <?php endif; ?>
                                             
                                             <?php 
-                                            // Iterate through flights grouped by date
-                                            // Each day's flights start from row 1 (index 0)
+                                            // Iterate through ALL flights for this aircraft (not grouped by date)
+                                            // All flights will be displayed in a single row
+                                            $allFlightsForAircraft = [];
                                             foreach ($flightsByDateForAircraft as $flightDate => $dateFlights): 
-                                                foreach ($dateFlights as $index => $flight): 
+                                                foreach ($dateFlights as $flight):
+                                                    $allFlightsForAircraft[] = $flight;
+                                                endforeach;
+                                            endforeach;
+                                            
+                                            // Now iterate through all flights - all in one row
+                                            foreach ($allFlightsForAircraft as $flight): 
                                                     // Get TaskStart and TaskEnd (scheduled times)
                                                     $taskStart = $flight['TaskStart'] ?? null;
                                                     $taskEnd = $flight['TaskEnd'] ?? null;
@@ -1833,7 +1854,8 @@ try {
                                                         $delay_minutes = 0; // Reset delay minutes to prevent showing delay bar
                                                     }
                                                     
-                                                    $top_position = 6 + ($index * 50); // 50px spacing between flights (32px bar + 2px gap + 14px time + 2px bottom)
+                                                    // All flights in one row - same top position for all
+                                                    $top_position = 6; // Fixed position for all flights in the same row
                                                     
                                                     // Get status color
                                                     $flight_status = $flight['ScheduledTaskStatus'] ?? '';
@@ -1857,7 +1879,8 @@ try {
                                                     
                                                     $delay_duration_percent = 0;
                                                     $delay_start_position_percent = 0;
-                                                    $top_position = 4 + ($index * 25);
+                                                    // All flights in one row - same top position for all
+                                                    $top_position = 4; // Fixed position for all flights in the same row
                                                     
                                                     // Get status color
                                                     $flight_status = $flight['ScheduledTaskStatus'] ?? '';
@@ -1981,8 +2004,8 @@ try {
                                                 
                                                 <?php endif; ?>
                                                 <?php endif; // Close timeline check ?>
-                                                <?php endforeach; // End dateFlights loop ?>
-                                            <?php endforeach; // End flightsByDateForAircraft loop ?>
+                                            <?php endforeach; // End allFlightsForAircraft loop ?>
+                                            </div> <!-- End Timeline Content Container -->
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

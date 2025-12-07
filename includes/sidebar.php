@@ -176,6 +176,14 @@ function getAbsolutePath($path) {
                     </a>
                     <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/fleet/airsar_report/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/fleet/airsar_report/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'airsar_report') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-file-chart-line mr-3 text-sm"></i>
+                        Airsar Report (ETL)
+                    </a>
+                    <?php endif; ?>
+                    
                     <?php if (checkPageAccessEnhanced('admin/fleet/handover/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/fleet/handover/index.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'handover') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
@@ -707,11 +715,18 @@ function getAbsolutePath($path) {
                         <i class="fas fa-question-circle mr-3 text-sm"></i>
                         My Quiz
                     </a>
+                    <?php if (checkPageAccessEnhanced('admin/profile/my_class.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/profile/my_class.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'my_class') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-chalkboard-teacher mr-3 text-sm"></i>
+                        My Class
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
 
             <!-- Training -->
-            <?php if (checkPageAccessEnhanced('admin/training/quiz/index.php') || checkPageAccessEnhanced('admin/training/quiz/create_set.php') || checkPageAccessEnhanced('admin/training/quiz/assign_quiz.php') || checkPageAccessEnhanced('admin/training/quiz/results.php') || checkPageAccessEnhanced('admin/training/certificate/issue_certificate.php') || checkPageAccessEnhanced('admin/users/certificate/index.php')): ?>
+            <?php if (checkPageAccessEnhanced('admin/training/quiz/index.php') || checkPageAccessEnhanced('admin/training/quiz/create_set.php') || checkPageAccessEnhanced('admin/training/quiz/assign_quiz.php') || checkPageAccessEnhanced('admin/training/quiz/results.php') || checkPageAccessEnhanced('admin/training/certificate/issue_certificate.php') || checkPageAccessEnhanced('admin/users/certificate/index.php') || checkPageAccessEnhanced('admin/training/class/index.php')): ?>
             <div class="space-y-1">
                 <button id="training-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -761,6 +776,13 @@ function getAbsolutePath($path) {
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'index' && $current_dir == 'certificate') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-list mr-3 text-sm"></i>
                         Certificate List
+                    </a>
+                    <?php endif; ?>
+                    <?php if (checkPageAccessEnhanced('admin/training/class/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/training/class/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'class') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-chalkboard-teacher mr-3 text-sm"></i>
+                        Class Management
                     </a>
                     <?php endif; ?>
                 </div>
@@ -1053,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeAllMenus();
     
     // Auto-open fleet menu if on fleet management pages
-    if (currentDir === 'fleet' || currentDir === 'aircraft' || currentDir === 'routes' || currentDir === 'etl_report' || currentDir === 'handover' || currentDir === 'delay_codes' || currentDir === 'mel_items' || currentDir === 'camo_report' || currentDir === 'toolbox' || currentPage === 'stations' || currentPage === 'fix_time') {
+    if (currentDir === 'fleet' || currentDir === 'aircraft' || currentDir === 'routes' || currentDir === 'etl_report' || currentDir === 'airsar_report' || currentDir === 'handover' || currentDir === 'delay_codes' || currentDir === 'mel_items' || currentDir === 'camo_report' || currentDir === 'toolbox' || currentPage === 'stations' || currentPage === 'fix_time') {
         openMenu(fleetMenu, fleetArrow);
     }
     
@@ -1103,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open My RIOPS menu if on profile pages
-    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz') {
+    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz' || currentPage === 'my_class') {
         openMenu(myRiOPSMenu, myRiOPSArrow);
     }
     
@@ -1115,12 +1137,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-open Full Log menu if on full log pages (removed - no longer a menu, just a link)
     
     // Auto-open Training menu if on training pages
-    else if (currentDir === 'training' || currentDir === 'quiz' || currentDir === 'certificate') {
+    else if (currentDir === 'training' || currentDir === 'quiz' || currentDir === 'certificate' || currentDir === 'class') {
         openMenu(trainingMenu, trainingArrow);
     }
     
     // Auto-open My RIOPS menu if on profile pages or my_quiz
-    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz') {
+    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz' || currentPage === 'my_class') {
         openMenu(myRiOPSMenu, myRiOPSArrow);
     }
 

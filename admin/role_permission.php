@@ -177,6 +177,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_airsar_report_page':
+            $pagePath = 'admin/fleet/airsar_report/index.php';
+            $pageName = 'Airsar Report (ETL)';
+            $requiredRoles = ['admin'];
+            $description = 'Airsar Report from ETL system - Operations data with flight details, crew, and task information';
+            
+            // Check if page already exists
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Airsar Report (ETL) page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Airsar Report (ETL) page permission.';
+                }
+            } else {
+                $message = 'Airsar Report (ETL) page permission already exists.';
+            }
+            break;
+
         case 'add_efb_page':
             $pagePath = 'admin/efb/index.php';
             $pageName = 'EFB - Electronic Flight Bag';
@@ -1051,6 +1070,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $message = 'Activity Log page permission already exists.';
             }
             break;
+
+        case 'add_class_management_page':
+            $classPages = [
+                ['path' => 'admin/training/class/index.php', 'name' => 'Class Management', 'description' => 'View and manage training classes, schedules, and assignments'],
+                ['path' => 'admin/training/class/create.php', 'name' => 'Create Class', 'description' => 'Create new training class with schedules and assignments'],
+                ['path' => 'admin/training/class/edit.php', 'name' => 'Edit Class', 'description' => 'Edit existing training class information']
+            ];
+            
+            $added = 0;
+            foreach ($classPages as $page) {
+                $existingPermission = getPagePermission($page['path']);
+                if (!$existingPermission) {
+                    if (addNewPagePermission($page['path'], $page['name'], ['admin'], $page['description'])) {
+                        $added++;
+                    }
+                }
+            }
+            
+            if ($added > 0) {
+                $message = "Successfully added {$added} Class Management page(s) to permissions.";
+            } else {
+                $message = 'All Class Management pages already exist in permissions.';
+            }
+            break;
+
+        case 'add_my_class_page':
+            $pagePath = 'admin/profile/my_class.php';
+            $pageName = 'My Class';
+            $requiredRoles = ['admin', 'pilot', 'employee'];
+            $description = 'View assigned training classes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'My Class page permission added successfully.';
+                } else {
+                    $error = 'Failed to add My Class page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'My Class page permission already exists.';
+            }
+            break;
             
     }
 }
@@ -1699,6 +1759,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addETLReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-chart-line mr-2"></i>ETL Report
                         </button>
+                        <button onclick="addAirsarReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-file-chart-line mr-2"></i>Airsar Report (ETL)
+                        </button>
                         <button onclick="addEFBPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-briefcase mr-2"></i>EFB
                         </button>
@@ -1853,6 +1916,12 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addActivityLogPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-user-clock mr-2"></i>Activity Log
+                        </button>
+                        <button onclick="addClassManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-chalkboard-teacher mr-2"></i>Class Management
+                        </button>
+                        <button onclick="addMyClassPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-chalkboard-teacher mr-2"></i>My Class
                         </button>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700 my-2 md:col-span-2"></div>
@@ -2292,6 +2361,25 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_etl_report_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addAirsarReportPage() {
+            if (confirm('Add Airsar Report (ETL) page permission with admin role?')) {
+                // Show loading state
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                // Create a form and submit it
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_airsar_report_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
@@ -3159,6 +3247,40 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_activity_log_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addClassManagementPage() {
+            if (confirm('Add Class Management page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_class_management_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addMyClassPage() {
+            if (confirm('Add My Class page permission with admin, pilot, and employee roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_my_class_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
