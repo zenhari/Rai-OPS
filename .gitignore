@@ -1,2 +1,4 @@
 admin/users/certificate/cer/
-admin/training/certificate
+admin/users/certificate/qr/
+admin/training/certificate/cer
+admin/training/certificate/qr
