@@ -652,6 +652,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_notam_page':
+            $pagePath = 'admin/notam.php';
+            $pageName = 'NOTAM';
+            $requiredRoles = ['admin'];
+            $description = 'View NOTAMs for today\'s flight routes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'NOTAM page permission added successfully.';
+                } else {
+                    $error = 'Failed to add NOTAM page permission.';
+                }
+            } else {
+                $message = 'NOTAM page permission already exists.';
+            }
+            break;
+
         case 'add_route_fix_time_page':
             $pagePath = 'admin/fleet/routes/fix_time.php';
             $pageName = 'Route Fix Time Management';
@@ -1958,6 +1975,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addCAADailyReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-file-excel mr-2"></i>CAA Daily Report
                         </button>
+                        <button onclick="addNotamPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>NOTAM
+                        </button>
                         <button onclick="addRouteFixTimePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-clock mr-2"></i>Route Fix Time
                         </button>
@@ -3097,6 +3117,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_caa_daily_report_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addNotamPage() {
+            if (confirm('Add NOTAM page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_notam_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

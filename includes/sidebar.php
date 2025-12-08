@@ -116,6 +116,15 @@ function getAbsolutePath($path) {
                 Dashboard
             </a>
 
+            <!-- NOTAM -->
+            <?php if (checkPageAccessEnhanced('admin/notam.php')): ?>
+            <a href="<?php echo getAbsolutePath('admin/notam.php'); ?>" 
+               class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'notam') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                <i class="fas fa-exclamation-triangle mr-3 text-lg"></i>
+                NOTAM
+            </a>
+            <?php endif; ?>
+
             <!-- Fleet Management -->
             <div class="space-y-1">
                 <button id="fleet-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
