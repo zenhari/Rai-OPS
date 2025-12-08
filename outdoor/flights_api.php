@@ -224,6 +224,107 @@ try {
     $stmt->execute($params);
     $flights = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Get crew member names - support both old field names (PIC, SIC, SCC, CC) and new (Crew1-Crew10)
+    // Mapping: PIC/LSP -> Crew1, SIC/RSP -> Crew2, CSP -> Crew3, DH -> Crew4, SCC -> Crew5, CC -> Crew6
+    $crewFieldMapping = [
+        'PIC' => 'Crew1',
+        'LSP' => 'Crew1',
+        'SIC' => 'Crew2',
+        'RSP' => 'Crew2',
+        'CSP' => 'Crew3',
+        'DH' => 'Crew4',
+        'SCC' => 'Crew5',
+        'CC' => 'Crew6'
+    ];
+    
+    $crewUserIds = [];
+    foreach ($flights as $flight) {
+        // Check Crew1-Crew10 fields
+        for ($i = 1; $i <= 10; $i++) {
+            $crewKey = "Crew{$i}";
+            if (isset($flight[$crewKey]) && !empty($flight[$crewKey]) && is_numeric($flight[$crewKey])) {
+                $userId = intval($flight[$crewKey]);
+                if ($userId > 0 && !in_array($userId, $crewUserIds)) {
+                    $crewUserIds[] = $userId;
+                }
+            }
+        }
+        
+        // Check old field names (PIC, SIC, SCC, CC, etc.)
+        foreach ($crewFieldMapping as $oldField => $newField) {
+            if (isset($flight[$oldField]) && !empty($flight[$oldField]) && is_numeric($flight[$oldField])) {
+                $userId = intval($flight[$oldField]);
+                if ($userId > 0 && !in_array($userId, $crewUserIds)) {
+                    $crewUserIds[] = $userId;
+                }
+            }
+        }
+    }
+    
+    // Fetch crew member names from users table
+    $crewMembers = [];
+    if (!empty($crewUserIds)) {
+        $placeholders = str_repeat('?,', count($crewUserIds) - 1) . '?';
+        $crewSql = "SELECT id, first_name, last_name FROM users WHERE id IN ($placeholders)";
+        $crewStmt = $db->prepare($crewSql);
+        $crewStmt->execute($crewUserIds);
+        $crewResults = $crewStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Create a map for quick lookup
+        foreach ($crewResults as $crew) {
+            $crewMembers[$crew['id']] = [
+                'first_name' => $crew['first_name'],
+                'last_name' => $crew['last_name'],
+                'full_name' => trim($crew['first_name'] . ' ' . $crew['last_name'])
+            ];
+        }
+    }
+    
+    // Add crew member names to flights data
+    foreach ($flights as &$flight) {
+        // Process Crew1-Crew10 fields
+        for ($i = 1; $i <= 10; $i++) {
+            $crewKey = "Crew{$i}";
+            $crewNameKey = "Crew{$i}_name";
+            $crewFirstNameKey = "Crew{$i}_first_name";
+            $crewLastNameKey = "Crew{$i}_last_name";
+            
+            if (isset($flight[$crewKey]) && !empty($flight[$crewKey]) && is_numeric($flight[$crewKey])) {
+                $userId = intval($flight[$crewKey]);
+                if (isset($crewMembers[$userId])) {
+                    $flight[$crewNameKey] = $crewMembers[$userId]['full_name'];
+                    $flight[$crewFirstNameKey] = $crewMembers[$userId]['first_name'];
+                    $flight[$crewLastNameKey] = $crewMembers[$userId]['last_name'];
+                } else {
+                    // User not found
+                    $flight[$crewNameKey] = null;
+                    $flight[$crewFirstNameKey] = null;
+                    $flight[$crewLastNameKey] = null;
+                }
+            }
+        }
+        
+        // Process old field names and add name fields
+        foreach ($crewFieldMapping as $oldField => $newField) {
+            if (isset($flight[$oldField]) && !empty($flight[$oldField]) && is_numeric($flight[$oldField])) {
+                $userId = intval($flight[$oldField]);
+                if (isset($crewMembers[$userId])) {
+                    // Add name fields for old field names
+                    $flight[$oldField . '_name'] = $crewMembers[$userId]['full_name'];
+                    $flight[$oldField . '_first_name'] = $crewMembers[$userId]['first_name'];
+                    $flight[$oldField . '_last_name'] = $crewMembers[$userId]['last_name'];
+                } else {
+                    // User not found
+                    $flight[$oldField . '_name'] = null;
+                    $flight[$oldField . '_first_name'] = null;
+                    $flight[$oldField . '_last_name'] = null;
+                }
+            }
+        }
+        
+        unset($flight); // Break reference
+    }
+    
     // Build applied filters info
     $appliedFilters = [];
     if ($date !== null && $date !== '') $appliedFilters['date'] = $date;

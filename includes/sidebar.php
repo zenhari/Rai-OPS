@@ -239,6 +239,42 @@ function getAbsolutePath($path) {
                 </div>
             </div>
 
+            <!-- RLSS -->
+            <div class="space-y-1">
+                <button id="rlss-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
+                    <div class="flex items-center">
+                        <i class="fas fa-search mr-3 text-lg"></i>
+                        RLSS
+                    </div>
+                    <i id="rlss-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
+                </button>
+                <div id="rlss-menu" class="hidden pl-6 space-y-1">
+                    <?php if (checkPageAccessEnhanced('admin/rlss/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/rlss/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'rlss' && strpos($_SERVER['REQUEST_URI'], '/admin/rlss/part_search/') === false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-home mr-3 text-sm"></i>
+                        RLSS Home
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if (checkPageAccessEnhanced('admin/rlss/part_search/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/rlss/part_search/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/rlss/part_search/') !== false ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-search mr-3 text-sm"></i>
+                        Part Search
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if (checkPageAccessEnhanced('admin/rlss/search_mro/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/rlss/search_mro/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/rlss/search_mro/') !== false ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-wrench mr-3 text-sm"></i>
+                        Search MRO
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <!-- Flight Management -->
             <div class="space-y-1">
                 <button id="flight-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
@@ -620,6 +656,13 @@ function getAbsolutePath($path) {
                         <i class="fas fa-dollar-sign mr-3 text-sm"></i>
                         Revenue Flights
                     </a>
+                    <?php if (checkPageAccessEnhanced('admin/caa/daily_report.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/caa/daily_report.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'daily_report') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-file-excel mr-3 text-sm"></i>
+                        Daily Report
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>
@@ -968,6 +1011,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const trainingMenu = document.getElementById('training-menu');
     const trainingArrow = document.getElementById('training-arrow');
 
+    const dispatchToggle = document.getElementById('dispatch-toggle');
+    const dispatchMenu = document.getElementById('dispatch-menu');
+    const dispatchArrow = document.getElementById('dispatch-arrow');
+
+    const rlssToggle = document.getElementById('rlss-toggle');
+    const rlssMenu = document.getElementById('rlss-menu');
+    const rlssArrow = document.getElementById('rlss-arrow');
+
     function toggleMenu(menu, arrow) {
         // Toggle the clicked menu (open if closed, close if open)
         // Don't close other menus
@@ -1069,10 +1120,14 @@ document.addEventListener('DOMContentLoaded', function() {
         dispatchToggle.addEventListener('click', () => toggleMenu(dispatchMenu, dispatchArrow));
     }
 
+    if (rlssToggle) {
+        rlssToggle.addEventListener('click', () => toggleMenu(rlssMenu, rlssArrow));
+    }
+
     // Function to close all menus
     function closeAllMenus() {
-        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, trainingMenu, dispatchMenu];
-        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, trainingArrow, dispatchArrow];
+        const allMenus = [fleetMenu, flightMenu, usersMenu, settingsMenu, flightLoadMenu, recencyMenu, statisticsMenu, caaMenu, transportMenu, myRiOPSMenu, priceMenu, odbMenu, rosterMenu, trainingMenu, dispatchMenu, rlssMenu];
+        const allArrows = [fleetArrow, flightArrow, usersArrow, settingsArrow, flightLoadArrow, recencyArrow, statisticsArrow, caaArrow, transportArrow, myRiOPSArrow, priceArrow, odbArrow, rosterArrow, trainingArrow, dispatchArrow, rlssArrow];
         
         allMenus.forEach(menu => {
             if (menu) menu.classList.add('hidden');
@@ -1168,6 +1223,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-open Dispatch menu if on dispatch pages
     else if (currentDir === 'dispatch' || currentDir === 'webform') {
         openMenu(dispatchMenu, dispatchArrow);
+    }
+    
+    // Auto-open RLSS menu if on RLSS pages
+    if (currentDir === 'rlss' || window.location.pathname.indexOf('/admin/rlss/') !== -1) {
+        if (rlssMenu && rlssArrow) {
+            openMenu(rlssMenu, rlssArrow);
+        }
     }
     
     // Auto-open My RIOPS menu if on profile pages or my_quiz

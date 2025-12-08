@@ -208,11 +208,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
-                darkModeIcon.className = 'fas fa-moon';
+                if (darkModeIcon) {
+                    darkModeIcon.className = 'fas fa-moon';
+                }
                 localStorage.setItem('darkMode', 'false');
             } else {
                 html.classList.add('dark');
-                darkModeIcon.className = 'fas fa-sun';
+                if (darkModeIcon) {
+                    darkModeIcon.className = 'fas fa-sun';
+                }
                 localStorage.setItem('darkMode', 'true');
             }
         }
@@ -225,10 +229,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if (savedDarkMode === 'true' || (savedDarkMode === null && systemPrefersDark)) {
                 document.documentElement.classList.add('dark');
-                darkModeIcon.className = 'fas fa-sun';
+                if (darkModeIcon) {
+                    darkModeIcon.className = 'fas fa-sun';
+                }
             } else {
                 document.documentElement.classList.remove('dark');
-                darkModeIcon.className = 'fas fa-moon';
+                if (darkModeIcon) {
+                    darkModeIcon.className = 'fas fa-moon';
+                }
             }
         }
 
@@ -238,12 +246,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Listen for system theme changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
             if (localStorage.getItem('darkMode') === null) {
+                const darkModeIcon = document.getElementById('dark-mode-icon');
                 if (e.matches) {
                     document.documentElement.classList.add('dark');
-                    document.getElementById('dark-mode-icon').className = 'fas fa-sun';
+                    if (darkModeIcon) {
+                        darkModeIcon.className = 'fas fa-sun';
+                    }
                 } else {
                     document.documentElement.classList.remove('dark');
-                    document.getElementById('dark-mode-icon').className = 'fas fa-moon';
+                    if (darkModeIcon) {
+                        darkModeIcon.className = 'fas fa-moon';
+                    }
                 }
             }
         });

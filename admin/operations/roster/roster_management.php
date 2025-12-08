@@ -271,27 +271,6 @@ while ($currentDate <= $endTimestamp) {
             outline: none;
         }
         
-        /* Mode indicator */
-        .mode-indicator {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: white;
-            border: 1px solid rgb(229, 231, 235);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 50;
-        }
-        
-        .dark .mode-indicator {
-            background: rgb(31, 41, 55);
-            border-color: rgb(55, 65, 81);
-        }
         
         /* Shift Code Badge Styles */
         .shift-badge {
@@ -541,12 +520,22 @@ while ($currentDate <= $endTimestamp) {
                                     <?php 
                                     $bgColor = $shift['background_color'] ?? '#ffffff';
                                     $textColor = $shift['text_color'] ?? '#000000';
+                                    
+                                    // Decode shift_periods to check if it has time periods
+                                    $shiftPeriods = [];
+                                    if (!empty($shift['shift_periods'])) {
+                                        $shiftPeriods = json_decode($shift['shift_periods'], true) ?: [];
+                                    }
+                                    $hasTimePeriods = !empty($shiftPeriods);
+                                    $shiftPeriodsJson = htmlspecialchars(json_encode($shiftPeriods));
                                     ?>
                                     <div class="shift-badge" 
                                          data-shift-id="<?php echo $shift['id']; ?>"
                                          data-code="<?php echo htmlspecialchars($shift['code']); ?>"
                                          data-bg="<?php echo htmlspecialchars($bgColor); ?>"
                                          data-text="<?php echo htmlspecialchars($textColor); ?>"
+                                         data-has-time="<?php echo $hasTimePeriods ? '1' : '0'; ?>"
+                                         data-shift-periods="<?php echo $shiftPeriodsJson; ?>"
                                          style="background-color: <?php echo htmlspecialchars($bgColor); ?>; color: <?php echo htmlspecialchars($textColor); ?>; border-color: <?php echo htmlspecialchars($bgColor); ?>;">
                                         <span class="font-semibold"><?php echo htmlspecialchars(strtoupper($shift['code'])); ?></span>
                                     </div>
@@ -691,16 +680,27 @@ while ($currentDate <= $endTimestamp) {
                                                 $bgColor = $assignment['background_color'] ?? '#ffffff';
                                                 $textColor = $assignment['text_color'] ?? '#000000';
                                                 $fromFlights = isset($assignment['from_flights']) && $assignment['from_flights'] ? 'true' : 'false';
+                                                $startTime = $assignment['start_time'] ?? null;
+                                                $endTime = $assignment['end_time'] ?? null;
                                                 ?>
                                                 <td class="px-2 py-3">
                                                     <div class="roster-box <?php echo $shiftCodeId ? 'filled' : ''; ?> <?php echo $fromFlights === 'true' ? 'from-flights' : ''; ?>" 
                                                          data-user-id="<?php echo $user['id']; ?>"
                                                          data-date="<?php echo $date; ?>"
+                                                         data-start-time="<?php echo $startTime ? htmlspecialchars($startTime) : ''; ?>"
+                                                         data-end-time="<?php echo $endTime ? htmlspecialchars($endTime) : ''; ?>"
                                                          data-shift-code-id="<?php echo $shiftCodeId ?? ''; ?>"
                                                          data-from-flights="<?php echo $fromFlights; ?>"
                                                          style="<?php if ($shiftCodeId): ?>background-color: <?php echo htmlspecialchars($bgColor); ?>; color: <?php echo htmlspecialchars($textColor); ?>; border-color: <?php echo htmlspecialchars($bgColor); ?>;<?php endif; ?>">
                                                         <?php if ($shiftCode): ?>
-                                                            <?php echo htmlspecialchars(strtoupper($shiftCode)); ?>
+                                                            <div class="text-center">
+                                                                <div class="font-semibold"><?php echo htmlspecialchars(strtoupper($shiftCode)); ?></div>
+                                                                <?php if ($startTime && $endTime): ?>
+                                                                    <div class="text-[7px] opacity-80 mt-0.5">
+                                                                        <?php echo htmlspecialchars(substr($startTime, 0, 5) . '-' . substr($endTime, 0, 5)); ?>
+                                                                    </div>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         <?php else: ?>
                                                             <span class="text-gray-300 dark:text-gray-600 text-xs">—</span>
                                                         <?php endif; ?>
@@ -733,42 +733,116 @@ while ($currentDate <= $endTimestamp) {
         </div>
     </div>
 
-    <!-- Dark Mode Toggle (Optional - can be removed if using browser preference only) -->
-    <div class="mode-indicator" id="modeToggle" title="Toggle Dark Mode">
-        <i class="fas fa-moon text-gray-600 dark:text-yellow-400 text-xl"></i>
+    <!-- Flight Details Modal -->
+    <div id="flightDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Flight Details</h3>
+                    <button onclick="closeFlightDetailsModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div id="flightDetailsContent" class="space-y-4">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+                
+                <div class="flex justify-end mt-6">
+                    <button onclick="closeFlightDetailsModal()" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md transition-colors duration-200">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Selection Modal -->
+    <div id="timeModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Set Shift Time</h3>
+                    <button onclick="closeTimeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        <span class="font-medium">Shift Code:</span> <span id="timeModalShiftCode" class="font-semibold"></span>
+                    </p>
+                </div>
+                
+                <form id="timeForm" class="space-y-4">
+                    <div>
+                        <label for="start_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Start Time *
+                        </label>
+                        <input type="time" id="start_time" name="start_time" required
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label for="end_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            End Time *
+                        </label>
+                        <input type="time" id="end_time" name="end_time" required
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeTimeModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md transition-colors duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors duration-200">
+                            Apply
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Dark mode detection and toggle
+        // Dark mode detection from browser preference only (no toggle button)
         (function() {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const html = document.documentElement;
             
-            // Check localStorage first, then browser preference
-            const savedMode = localStorage.getItem('darkMode');
-            if (savedMode === 'dark' || (savedMode === null && prefersDark)) {
+            // Apply dark mode based on browser preference only
+            if (prefersDark) {
                 html.classList.add('dark');
             } else {
                 html.classList.remove('dark');
             }
             
-            // Toggle dark mode
-            document.getElementById('modeToggle')?.addEventListener('click', function() {
-                html.classList.toggle('dark');
-                localStorage.setItem('darkMode', html.classList.contains('dark') ? 'dark' : 'light');
-            });
-            
             // Listen for system preference changes
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                if (!localStorage.getItem('darkMode')) {
                     if (e.matches) {
                         html.classList.add('dark');
                     } else {
                         html.classList.remove('dark');
-                    }
                 }
             });
         })();
+
+        // Shift codes data from PHP
+        const shiftCodesData = <?php echo json_encode(array_map(function($shift) {
+            $shiftPeriods = [];
+            if (!empty($shift['shift_periods'])) {
+                $shiftPeriods = json_decode($shift['shift_periods'], true) ?: [];
+            }
+            return [
+                'id' => $shift['id'],
+                'code' => $shift['code'],
+                'has_time' => !empty($shiftPeriods) ? '1' : '0',
+                'shift_periods' => $shiftPeriods
+            ];
+        }, $shiftCodes)); ?>;
 
         let selectedShiftCode = null;
         let isFillMode = false;
@@ -776,6 +850,8 @@ while ($currentDate <= $endTimestamp) {
         let isRangeMode = false;
         let rangeStartBox = null;
         let rangeEndBox = null;
+        let currentTimeBox = null; // Store the box that's being assigned time
+        let currentShiftCodeForTime = null; // Store the shift code for time modal
         
         // Function to reset all modes
         function resetModes() {
@@ -903,19 +979,23 @@ while ($currentDate <= $endTimestamp) {
         function applyFillToBoxes(boxes) {
             if (!selectedShiftCode) return;
             
-            boxes.forEach(box => {
-                // When user manually assigns, remove from-flights flag
-                if (box.dataset.fromFlights === 'true') {
-                    box.dataset.fromFlights = 'false';
-                    box.classList.remove('from-flights', 'clear-disabled');
-                }
-                box.dataset.shiftCodeId = selectedShiftCode.id;
-                box.style.backgroundColor = selectedShiftCode.bg;
-                box.style.color = selectedShiftCode.text;
-                box.style.borderColor = selectedShiftCode.bg;
-                box.classList.add('filled');
-                box.innerHTML = selectedShiftCode.code.toUpperCase();
-            });
+            // Check if shift code is not FDP
+            const isNotFDP = selectedShiftCode.code.toUpperCase() !== 'FDP';
+            
+            if (isNotFDP && boxes.length === 1) {
+                // Single box with non-FDP shift code - open modal for time selection
+                openTimeModal(selectedShiftCode, boxes[0]);
+            } else if (isNotFDP && boxes.length > 1) {
+                // Multiple boxes with non-FDP shift code - open modal for first box, then apply to all
+                // Store boxes to fill after time selection
+                window.pendingRangeBoxes = boxes;
+                openTimeModal(selectedShiftCode, boxes[0]);
+            } else {
+                // FDP or no time required - fill directly
+                boxes.forEach(box => {
+                    fillBoxWithShiftCode(box, selectedShiftCode);
+                });
+            }
         }
         
         // Function to clear boxes (skip boxes from flights)
@@ -926,6 +1006,8 @@ while ($currentDate <= $endTimestamp) {
                     return;
                 }
                 box.dataset.shiftCodeId = '';
+                delete box.dataset.startTime;
+                delete box.dataset.endTime;
                 box.style.backgroundColor = '';
                 box.style.color = '';
                 box.style.borderColor = '';
@@ -993,20 +1075,43 @@ while ($currentDate <= $endTimestamp) {
                         }, 1000);
                     }
                 } else if (isFillMode && selectedShiftCode) {
-                    // Fill the box
-                    // When user manually assigns, remove from-flights flag
-                    if (this.dataset.fromFlights === 'true') {
-                        this.dataset.fromFlights = 'false';
-                        this.classList.remove('from-flights', 'clear-disabled');
+                    // Check if shift code is not FDP - if not FDP, allow time selection
+                    const shiftCodeData = shiftCodesData.find(sc => sc.id == selectedShiftCode.id);
+                    const isNotFDP = selectedShiftCode.code.toUpperCase() !== 'FDP';
+                    
+                    if (isNotFDP) {
+                        // Open time modal for all non-FDP shift codes
+                        openTimeModal(selectedShiftCode, this);
+                    } else {
+                        // Fill the box directly for FDP (no time required)
+                        fillBoxWithShiftCode(this, selectedShiftCode);
                     }
-                    this.dataset.shiftCodeId = selectedShiftCode.id;
-                    this.style.backgroundColor = selectedShiftCode.bg;
-                    this.style.color = selectedShiftCode.text;
-                    this.style.borderColor = selectedShiftCode.bg;
-                    this.classList.add('filled');
-                    this.innerHTML = selectedShiftCode.code.toUpperCase();
-                    this.classList.add('selected');
-                    setTimeout(() => this.classList.remove('selected'), 300);
+                } else if (!isFillMode && !isClearMode && !isRangeMode && this.classList.contains('filled')) {
+                    // If clicking on a filled box (not in any mode)
+                    const shiftCodeId = this.dataset.shiftCodeId;
+                    const fromFlights = this.dataset.fromFlights === 'true';
+                    
+                    if (shiftCodeId) {
+                        const shiftCodeData = shiftCodesData.find(sc => sc.id == shiftCodeId);
+                        
+                        // If it's FDP from flights, show flight details
+                        if (fromFlights && shiftCodeData && shiftCodeData.code.toUpperCase() === 'FDP') {
+                            const userId = this.dataset.userId;
+                            const date = this.dataset.date;
+                            showFlightDetailsModal(userId, date);
+                        } 
+                        // Allow time editing for all non-FDP shift codes
+                        else if (shiftCodeData && shiftCodeData.code.toUpperCase() !== 'FDP') {
+                            // Create a temporary selectedShiftCode object for editing
+                            const tempShiftCode = {
+                                id: shiftCodeId,
+                                code: shiftCodeData.code,
+                                bg: this.style.backgroundColor,
+                                text: this.style.color
+                            };
+                            openTimeModal(tempShiftCode, this);
+                        }
+                    }
                 } else if (isClearMode) {
                     // Clear the box (skip if from flights)
                     if (this.dataset.fromFlights === 'true') {
@@ -1018,6 +1123,8 @@ while ($currentDate <= $endTimestamp) {
                         return;
                     }
                     this.dataset.shiftCodeId = '';
+                    delete this.dataset.startTime;
+                    delete this.dataset.endTime;
                     this.style.backgroundColor = '';
                     this.style.color = '';
                     this.style.borderColor = '';
@@ -1097,11 +1204,21 @@ while ($currentDate <= $endTimestamp) {
                     });
                 } else if (shiftCodeId) {
                     // Normal assignment
-                    assignments.push({
+                    const assignment = {
                         user_id: box.dataset.userId,
                         date: box.dataset.date,
                         shift_code_id: shiftCodeId
-                    });
+                    };
+                    
+                    // Add start_time and end_time if they exist
+                    if (box.dataset.startTime) {
+                        assignment.start_time = box.dataset.startTime;
+                    }
+                    if (box.dataset.endTime) {
+                        assignment.end_time = box.dataset.endTime;
+                    }
+                    
+                    assignments.push(assignment);
                 }
             });
 
@@ -1152,6 +1269,249 @@ while ($currentDate <= $endTimestamp) {
             document.querySelectorAll('.role-group-arrow').forEach(arrow => {
                 arrow.classList.add('expanded');
             });
+        });
+        
+        // Time Modal Functions
+        function openTimeModal(shiftCode, box) {
+            currentTimeBox = box;
+            const modal = document.getElementById('timeModal');
+            const shiftCodeName = document.getElementById('timeModalShiftCode');
+            const startTimeInput = document.getElementById('start_time');
+            const endTimeInput = document.getElementById('end_time');
+            
+            // Set shift code name
+            shiftCodeName.textContent = shiftCode.code.toUpperCase();
+            
+            // Get shift code data to check for predefined periods
+            const shiftCodeData = shiftCodesData.find(sc => sc.id == shiftCode.id);
+            
+            // If box already has times, use them; otherwise check for predefined periods
+            if (box.dataset.startTime && box.dataset.endTime) {
+                // Convert time format if needed (HH:MM:SS to HH:MM)
+                const startTime = box.dataset.startTime.length > 5 ? box.dataset.startTime.substring(0, 5) : box.dataset.startTime;
+                const endTime = box.dataset.endTime.length > 5 ? box.dataset.endTime.substring(0, 5) : box.dataset.endTime;
+                startTimeInput.value = startTime;
+                endTimeInput.value = endTime;
+            } else if (shiftCodeData && shiftCodeData.shift_periods && shiftCodeData.shift_periods.length > 0) {
+                // Use first predefined period as default
+                const firstPeriod = shiftCodeData.shift_periods[0];
+                if (firstPeriod.start_time) {
+                    const startTime = firstPeriod.start_time.length > 5 ? firstPeriod.start_time.substring(0, 5) : firstPeriod.start_time;
+                    startTimeInput.value = startTime;
+                } else {
+                    startTimeInput.value = '';
+                }
+                if (firstPeriod.end_time) {
+                    const endTime = firstPeriod.end_time.length > 5 ? firstPeriod.end_time.substring(0, 5) : firstPeriod.end_time;
+                    endTimeInput.value = endTime;
+                } else {
+                    endTimeInput.value = '';
+                }
+            } else {
+                // Clear inputs
+                startTimeInput.value = '';
+                endTimeInput.value = '';
+            }
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function closeTimeModal() {
+            const modal = document.getElementById('timeModal');
+            modal.classList.add('hidden');
+            currentTimeBox = null;
+            currentShiftCodeForTime = null;
+        }
+        
+        function fillBoxWithShiftCode(box, shiftCode, startTime = null, endTime = null) {
+            // When user manually assigns, remove from-flights flag
+            if (box.dataset.fromFlights === 'true') {
+                box.dataset.fromFlights = 'false';
+                box.classList.remove('from-flights', 'clear-disabled');
+            }
+            
+            box.dataset.shiftCodeId = shiftCode.id;
+            if (startTime) {
+                box.dataset.startTime = startTime;
+            } else {
+                delete box.dataset.startTime;
+            }
+            if (endTime) {
+                box.dataset.endTime = endTime;
+            } else {
+                delete box.dataset.endTime;
+            }
+            
+            box.style.backgroundColor = shiftCode.bg;
+            box.style.color = shiftCode.text;
+            box.style.borderColor = shiftCode.bg;
+            box.classList.add('filled');
+            
+            // Display shift code with time if available
+            let displayText = shiftCode.code.toUpperCase();
+            if (startTime && endTime) {
+                displayText += `<br><span style="font-size: 7px; opacity: 0.8;">${startTime.substring(0, 5)}-${endTime.substring(0, 5)}</span>`;
+            }
+            box.innerHTML = displayText;
+            
+            box.classList.add('selected');
+            setTimeout(() => box.classList.remove('selected'), 300);
+        }
+        
+        // Handle time form submission
+        document.getElementById('timeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Use currentShiftCodeForTime if available, otherwise use selectedShiftCode
+            const shiftCodeToUse = currentShiftCodeForTime || selectedShiftCode;
+            
+            if (!currentTimeBox || !shiftCodeToUse) {
+                closeTimeModal();
+                return;
+            }
+            
+            const startTime = document.getElementById('start_time').value;
+            const endTime = document.getElementById('end_time').value;
+            
+            if (!startTime || !endTime) {
+                alert('Please select both start time and end time.');
+                return;
+            }
+            
+            // Fill the box with shift code and times
+            fillBoxWithShiftCode(currentTimeBox, shiftCodeToUse, startTime, endTime);
+            
+            // If there are pending range boxes, fill them all with the same time
+            if (window.pendingRangeBoxes && window.pendingRangeBoxes.length > 1) {
+                window.pendingRangeBoxes.forEach(box => {
+                    if (box !== currentTimeBox) {
+                        fillBoxWithShiftCode(box, shiftCodeToUse, startTime, endTime);
+                    }
+                });
+                window.pendingRangeBoxes = null;
+            }
+            
+            // Close modal
+            closeTimeModal();
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('timeModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTimeModal();
+            }
+        });
+        
+        // Flight Details Modal Functions
+        function showFlightDetailsModal(userId, date) {
+            const modal = document.getElementById('flightDetailsModal');
+            const content = document.getElementById('flightDetailsContent');
+            
+            // Show loading state
+            content.innerHTML = `
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600 dark:text-gray-400">Loading flight details...</span>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            
+            // Fetch flight details via AJAX
+            fetch('get_flight_details.php?user_id=' + userId + '&date=' + date)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.flights && data.flights.length > 0) {
+                        let html = `
+                            <div class="mb-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    <span class="font-medium">Date:</span> ${date}<br>
+                                    <span class="font-medium">User ID:</span> ${userId}
+                                </p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Flight No</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Route</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aircraft</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task Start</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Task End</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Crew Role</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        `;
+                        
+                        data.flights.forEach(flight => {
+                            const taskStart = flight.TaskStart ? new Date(flight.TaskStart).toLocaleString() : 'N/A';
+                            const taskEnd = flight.TaskEnd ? new Date(flight.TaskEnd).toLocaleString() : 'N/A';
+                            const route = flight.Route || 'N/A';
+                            const rego = flight.Rego || 'N/A';
+                            const flightNo = flight.FlightNo || 'N/A';
+                            
+                            // Determine crew role
+                            let crewRole = 'Unknown';
+                            if (flight.Crew1 == userId) crewRole = flight.Crew1_role || 'Crew 1';
+                            else if (flight.Crew2 == userId) crewRole = flight.Crew2_role || 'Crew 2';
+                            else if (flight.Crew3 == userId) crewRole = flight.Crew3_role || 'Crew 3';
+                            else if (flight.Crew4 == userId) crewRole = flight.Crew4_role || 'Crew 4';
+                            else if (flight.Crew5 == userId) crewRole = flight.Crew5_role || 'Crew 5';
+                            else if (flight.Crew6 == userId) crewRole = flight.Crew6_role || 'Crew 6';
+                            else if (flight.Crew7 == userId) crewRole = flight.Crew7_role || 'Crew 7';
+                            else if (flight.Crew8 == userId) crewRole = flight.Crew8_role || 'Crew 8';
+                            else if (flight.Crew9 == userId) crewRole = flight.Crew9_role || 'Crew 9';
+                            else if (flight.Crew10 == userId) crewRole = flight.Crew10_role || 'Crew 10';
+                            
+                            html += `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${flightNo}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${route}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${rego}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${taskStart}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${taskEnd}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">${crewRole}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                        
+                        content.innerHTML = html;
+                    } else {
+                        content.innerHTML = `
+                            <div class="text-center py-8">
+                                <i class="fas fa-info-circle text-2xl text-gray-400 mb-2"></i>
+                                <p class="text-gray-600 dark:text-gray-400">No flight details found for this date.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading flight details:', error);
+                    content.innerHTML = `
+                        <div class="text-center py-8 text-red-600">
+                            <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                            <p>Error loading flight details. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function closeFlightDetailsModal() {
+            document.getElementById('flightDetailsModal').classList.add('hidden');
+        }
+        
+        // Close flight details modal when clicking outside
+        document.getElementById('flightDetailsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeFlightDetailsModal();
+            }
         });
     </script>
 </body>

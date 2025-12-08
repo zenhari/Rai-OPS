@@ -8,6 +8,49 @@ $current_user = getCurrentUser();
 $message = '';
 $error = '';
 
+// Check if this is an AJAX request
+$isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+/**
+ * Render Individual Access cell HTML
+ */
+function renderIndividualAccessCell($pagePath, $pageName = null, $individualAccess = null) {
+    // If pageName is not provided, get it from database
+    if ($pageName === null) {
+        $permission = getPagePermission($pagePath);
+        $pageName = $permission['page_name'] ?? '';
+    }
+    
+    // If individualAccess is not provided, get it from database
+    if ($individualAccess === null) {
+        $individualAccess = getIndividualAccessForPage($pagePath);
+    }
+    
+    $html = '<div class="space-y-1">';
+    if (empty($individualAccess)) {
+        $html .= '<span class="text-xs text-gray-400 dark:text-gray-500">No individual access</span>';
+    } else {
+        foreach ($individualAccess as $access) {
+            $html .= '<div class="flex items-center justify-between">';
+            $html .= '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">';
+            $html .= htmlspecialchars($access['first_name'] . ' ' . $access['last_name']);
+            if ($access['expires_at']) {
+                $html .= '<span class="ml-1 text-xs opacity-75">(exp: ' . date('M j', strtotime($access['expires_at'])) . ')</span>';
+            }
+            $html .= '</span>';
+            $html .= '<button onclick="revokeIndividualAccess(\'' . htmlspecialchars($pagePath) . '\', ' . $access['user_id'] . ')" class="ml-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs">';
+            $html .= '<i class="fas fa-times"></i>';
+            $html .= '</button>';
+            $html .= '</div>';
+        }
+    }
+    $html .= '<button onclick="openIndividualAccessModal(\'' . htmlspecialchars($pagePath) . '\', \'' . htmlspecialchars($pageName) . '\')" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">';
+    $html .= '<i class="fas fa-plus mr-1"></i>Add User';
+    $html .= '</button>';
+    $html .= '</div>';
+    return $html;
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $action = $_POST['action'] ?? '';
@@ -30,6 +73,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 } else {
                     $error = 'Failed to update permission.';
                 }
+            }
+            
+            // If AJAX request, return JSON response
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => empty($error),
+                    'message' => $message ?? null,
+                    'error' => $error ?? null
+                ]);
+                exit;
             }
             break;
             
@@ -62,18 +116,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
         case 'grant_individual_access':
             $pagePath = trim($_POST['page_path'] ?? '');
-            $userId = intval($_POST['user_id'] ?? 0);
+            $userIds = $_POST['user_ids'] ?? [];
             $expiresAt = !empty($_POST['expires_at']) ? $_POST['expires_at'] : null;
             $notes = trim($_POST['notes'] ?? '');
             
-            if (empty($pagePath) || $userId <= 0) {
-                $error = 'Page path and user are required.';
+            if (empty($pagePath) || empty($userIds) || !is_array($userIds)) {
+                $error = 'Page path and at least one user are required.';
             } else {
+                $successCount = 0;
+                $failCount = 0;
+                
+                foreach ($userIds as $userId) {
+                    $userId = intval($userId);
+                    if ($userId > 0) {
                 if (grantIndividualAccess($pagePath, $userId, $current_user['id'], $expiresAt, $notes)) {
-                    $message = 'Individual access granted successfully.';
+                            $successCount++;
                 } else {
-                    $error = 'Failed to grant individual access.';
+                            $failCount++;
+                        }
+                    }
                 }
+                
+                if ($successCount > 0) {
+                    $message = "Individual access granted successfully for {$successCount} user(s).";
+                    if ($failCount > 0) {
+                        $message .= " Failed for {$failCount} user(s).";
+                    }
+                } else {
+                    $error = 'Failed to grant individual access for all selected users.';
+                }
+            }
+            
+            // If AJAX request, return JSON response
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                
+                // Get updated individual access HTML
+                $individualAccessHtml = null;
+                if (empty($error) && !empty($pagePath)) {
+                    $individualAccessHtml = renderIndividualAccessCell($pagePath);
+                }
+                
+                echo json_encode([
+                    'success' => empty($error),
+                    'message' => $message ?? null,
+                    'error' => $error ?? null,
+                    'successCount' => $successCount ?? 0,
+                    'failCount' => $failCount ?? 0,
+                    'pagePath' => $pagePath ?? null,
+                    'individualAccessHtml' => $individualAccessHtml
+                ]);
+                exit;
             }
             break;
             
@@ -213,6 +306,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } else {
                 $message = 'Dispatch Handover page permission already exists.';
             }
+            break;
+            
+        case 'add_rlss_page':
+            // Add main RLSS page
+            $pagePath = 'admin/rlss/index.php';
+            $pageName = 'RLSS';
+            $requiredRoles = ['admin'];
+            $description = 'RLSS - Main page for RLSS Management System';
+
+            // Check if page already exists
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                addNewPagePermission($pagePath, $pageName, $requiredRoles, $description);
+            }
+            
+            // Add Part Search page
+            $partSearchPath = 'admin/rlss/part_search/index.php';
+            $partSearchPermission = getPagePermission($partSearchPath);
+            if (!$partSearchPermission) {
+                addNewPagePermission($partSearchPath, 'RLSS - Part Search', $requiredRoles, 'RLSS - Parts Search using Locatory API - Search for aircraft parts by part number, condition, and quantity');
+            }
+            
+            // Add Search MRO page
+            $searchMROPath = 'admin/rlss/search_mro/index.php';
+            $searchMROPermission = getPagePermission($searchMROPath);
+            if (!$searchMROPermission) {
+                addNewPagePermission($searchMROPath, 'RLSS - Search MRO', $requiredRoles, 'RLSS - Search MRO capabilities using Locatory API - Search for maintenance, repair, and overhaul services');
+            }
+            
+            $message = 'RLSS pages permission added successfully.';
             break;
 
         case 'add_efb_page':
@@ -509,6 +632,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } else {
                 $message = 'CAA Revenue-generating Flights page permission already exists.';
+            }
+            break;
+
+        case 'add_caa_daily_report_page':
+            $pagePath = 'admin/caa/daily_report.php';
+            $pageName = 'CAA Daily Report';
+            $requiredRoles = ['admin'];
+            $description = 'Generate daily flight reports in Excel format with Persian headers';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'CAA Daily Report page permission added successfully.';
+                } else {
+                    $error = 'Failed to add CAA Daily Report page permission.';
+                }
+            } else {
+                $message = 'CAA Daily Report page permission already exists.';
             }
             break;
 
@@ -1256,7 +1396,7 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 if (!empty($parentFolderId)) {
                     $fileClasses .= ' folder-child hidden';
                 }
-                $html .= '<tr class="' . $fileClasses . '" data-page-name="' . htmlspecialchars(strtolower($permission['page_name'])) . '" data-parent-folder="' . htmlspecialchars($parentFolderId) . '">';
+                $html .= '<tr class="' . $fileClasses . '" data-page-name="' . htmlspecialchars(strtolower($permission['page_name'])) . '" data-parent-folder="' . htmlspecialchars($parentFolderId) . '" data-page-path="' . htmlspecialchars($permission['page_path']) . '">';
                 $html .= '<td class="px-6 py-4">';
                 $html .= '<div class="flex items-center" style="padding-left: ' . $indent . 'px;">';
                 $html .= '<i class="fas fa-file-code text-gray-400 mr-2"></i>';
@@ -1279,29 +1419,8 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 }
                 $html .= '</div>';
                 $html .= '</td>';
-                $html .= '<td class="px-6 py-4 whitespace-nowrap">';
-                $html .= '<div class="space-y-1">';
-                if (empty($individualAccess)) {
-                    $html .= '<span class="text-xs text-gray-400 dark:text-gray-500">No individual access</span>';
-                } else {
-                    foreach ($individualAccess as $access) {
-                        $html .= '<div class="flex items-center justify-between">';
-                        $html .= '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">';
-                        $html .= htmlspecialchars($access['first_name'] . ' ' . $access['last_name']);
-                        if ($access['expires_at']) {
-                            $html .= '<span class="ml-1 text-xs opacity-75">(exp: ' . date('M j', strtotime($access['expires_at'])) . ')</span>';
-                        }
-                        $html .= '</span>';
-                        $html .= '<button onclick="revokeIndividualAccess(\'' . htmlspecialchars($permission['page_path']) . '\', ' . $access['user_id'] . ')" class="ml-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs">';
-                        $html .= '<i class="fas fa-times"></i>';
-                        $html .= '</button>';
-                        $html .= '</div>';
-                    }
-                }
-                $html .= '<button onclick="openIndividualAccessModal(\'' . htmlspecialchars($permission['page_path']) . '\', \'' . htmlspecialchars($permission['page_name']) . '\')" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">';
-                $html .= '<i class="fas fa-plus mr-1"></i>Add User';
-                $html .= '</button>';
-                $html .= '</div>';
+                $html .= '<td class="px-6 py-4 whitespace-nowrap individual-access-cell" data-page-path="' . htmlspecialchars($permission['page_path']) . '">';
+                $html .= renderIndividualAccessCell($permission['page_path'], $permission['page_name'], $individualAccess);
                 $html .= '</td>';
                 $html .= '<td class="px-6 py-4">';
                 $html .= '<div class="text-sm text-gray-500 dark:text-gray-400">';
@@ -1484,7 +1603,7 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                     </button>
                 </div>
                 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" id="editPermissionForm" onsubmit="return submitEditPermissionForm(event)">
                     <input type="hidden" name="action" value="update_permission">
                     <input type="hidden" id="edit_permission_id" name="id">
                     
@@ -1680,13 +1799,13 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                     </p>
                 </div>
                 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" id="grantIndividualAccessForm" onsubmit="return submitGrantIndividualAccessForm(event)">
                     <input type="hidden" name="action" value="grant_individual_access">
                     <input type="hidden" id="individual_page_path" name="page_path">
                     
                     <div>
                         <label for="user_search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Search User *
+                            Search Users *
                         </label>
                         <div class="relative">
                             <input type="text" id="user_search" placeholder="Type to search users..."
@@ -1698,14 +1817,11 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <div id="user_search_results" class="mt-2 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 hidden">
                             <!-- Search results will be populated here -->
                         </div>
-                        <input type="hidden" id="user_id" name="user_id" required>
-                        <div id="selected_user_display" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-md hidden">
-                            <div class="flex items-center justify-between">
-                                <span id="selected_user_name" class="text-sm font-medium text-blue-800 dark:text-blue-200"></span>
-                                <button type="button" onclick="clearSelectedUser()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                        <div id="selected_users_display" class="mt-3 space-y-2">
+                            <!-- Selected users will be displayed here -->
                             </div>
+                        <div id="selected_users_hidden" class="hidden">
+                            <!-- Hidden inputs for selected user IDs -->
                         </div>
                     </div>
                     
@@ -1785,6 +1901,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addDispatchHandoverPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-clipboard-check mr-2"></i>Dispatch Handover
                         </button>
+                        <button onclick="addRLSSPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-search mr-2"></i>RLSS
+                        </button>
                         <button onclick="addEFBPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-briefcase mr-2"></i>EFB
                         </button>
@@ -1835,6 +1954,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addCAARevenuePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-dollar-sign mr-2"></i>CAA Revenue
+                        </button>
+                        <button onclick="addCAADailyReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-file-excel mr-2"></i>CAA Daily Report
                         </button>
                         <button onclick="addRouteFixTimePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-clock mr-2"></i>Route Fix Time
@@ -2187,7 +2309,7 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
 
         function closeIndividualAccessModal() {
             document.getElementById('individualAccessModal').classList.add('hidden');
-            clearSelectedUser();
+            clearSelectedUsers();
         }
 
         let allUsers = [];
@@ -2197,7 +2319,7 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             currentPagePath = pagePath;
             const userSearch = document.getElementById('user_search');
             userSearch.value = '';
-            clearSelectedUser();
+            clearSelectedUsers();
             
             // Make AJAX call to get users without individual access
             fetch(`api/get_users_without_access.php?page_path=${encodeURIComponent(pagePath)}`)
@@ -2254,32 +2376,264 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             if (users.length === 0) {
                 searchResults.innerHTML = '<div class="p-3 text-sm text-gray-500 dark:text-gray-400">No users found</div>';
             } else {
-                searchResults.innerHTML = users.map(user => `
-                    <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0" 
-                         onclick="selectUser(${user.id}, '${user.first_name} ${user.last_name}', '${user.position || 'N/A'}', '${user.role}')">
-                        <div class="font-medium text-gray-900 dark:text-white">${user.first_name} ${user.last_name}</div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">${user.position || 'N/A'} - ${user.role}</div>
-                        ${user.email ? `<div class="text-xs text-gray-400 dark:text-gray-500">${user.email}</div>` : ''}
+                searchResults.innerHTML = users.map(user => {
+                    const isSelected = selectedUsers.find(u => u.id === user.id);
+                    const selectedClass = isSelected ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : '';
+                    const selectedText = isSelected ? '<span class="text-xs text-green-600 dark:text-green-400 ml-2">(Selected)</span>' : '';
+                    
+                    const firstName = escapeHtml(user.first_name || '');
+                    const lastName = escapeHtml(user.last_name || '');
+                    const position = escapeHtml(user.position || 'N/A');
+                    const role = escapeHtml(user.role || '');
+                    const fullName = `${firstName} ${lastName}`;
+                    
+                    const onclickAttr = !isSelected ? `onclick="selectUser(${user.id}, '${fullName.replace(/'/g, "\\'")}', '${position.replace(/'/g, "\\'")}', '${role.replace(/'/g, "\\'")}')"` : '';
+                    
+                    return `
+                        <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${selectedClass}" 
+                             ${onclickAttr}>
+                            <div class="font-medium text-gray-900 dark:text-white">
+                                ${fullName}${selectedText}
                     </div>
-                `).join('');
+                            <div class="text-sm text-gray-500 dark:text-gray-400">${position} - ${role}</div>
+                            ${user.email ? `<div class="text-xs text-gray-400 dark:text-gray-500">${escapeHtml(user.email)}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
             }
             
             searchResults.classList.remove('hidden');
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        let selectedUsers = [];
+
         function selectUser(userId, userName, position, role) {
-            document.getElementById('user_id').value = userId;
-            document.getElementById('selected_user_name').textContent = `${userName} (${position} - ${role})`;
-            document.getElementById('selected_user_display').classList.remove('hidden');
+            // Check if user is already selected
+            if (selectedUsers.find(u => u.id === userId)) {
+                return;
+            }
+            
+            // Add user to selected list
+            selectedUsers.push({
+                id: userId,
+                name: userName,
+                position: position,
+                role: role
+            });
+            
+            // Update display
+            updateSelectedUsersDisplay();
+            
+            // Clear search
             document.getElementById('user_search_results').classList.add('hidden');
             document.getElementById('user_search').value = '';
         }
 
-        function clearSelectedUser() {
-            document.getElementById('user_id').value = '';
-            document.getElementById('selected_user_display').classList.add('hidden');
+        function removeSelectedUser(userId) {
+            selectedUsers = selectedUsers.filter(u => u.id !== userId);
+            updateSelectedUsersDisplay();
+        }
+
+        function clearSelectedUsers() {
+            selectedUsers = [];
+            updateSelectedUsersDisplay();
             document.getElementById('user_search').value = '';
             document.getElementById('user_search_results').classList.add('hidden');
+        }
+
+        function updateSelectedUsersDisplay() {
+            const displayDiv = document.getElementById('selected_users_display');
+            const hiddenDiv = document.getElementById('selected_users_hidden');
+            
+            if (selectedUsers.length === 0) {
+                displayDiv.innerHTML = '';
+                hiddenDiv.innerHTML = '';
+                return;
+            }
+            
+            // Update visible display
+            displayDiv.innerHTML = selectedUsers.map(user => `
+                <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-md">
+                    <span class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        ${user.name} (${user.position} - ${user.role})
+                    </span>
+                    <button type="button" onclick="removeSelectedUser(${user.id})" 
+                            class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+            
+            // Update hidden inputs for form submission
+            hiddenDiv.innerHTML = selectedUsers.map(user => 
+                `<input type="hidden" name="user_ids[]" value="${user.id}">`
+            ).join('');
+        }
+
+        function validateIndividualAccessForm(event) {
+            if (selectedUsers.length === 0) {
+                event.preventDefault();
+                alert('Please select at least one user.');
+                return false;
+            }
+            return true;
+        }
+
+        function submitEditPermissionForm(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            
+            // Disable submit button
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+            
+            fetch('', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                
+                if (data.success) {
+                    // Show success message
+                    showNotification(data.message, 'success');
+                    // Close modal
+                    closeEditPermissionModal();
+                    // Don't reload - stay on the same page with filters
+                } else {
+                    // Show error message
+                    showNotification(data.error || 'Failed to update permission', 'error');
+                }
+            })
+            .catch(error => {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                console.error('Error:', error);
+                showNotification('An error occurred. Please try again.', 'error');
+            });
+            
+            return false;
+        }
+
+        function submitGrantIndividualAccessForm(event) {
+            event.preventDefault();
+            
+            // Validate first
+            if (selectedUsers.length === 0) {
+                alert('Please select at least one user.');
+                return false;
+            }
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            
+            // Add selected user IDs to form data
+            selectedUsers.forEach(user => {
+                formData.append('user_ids[]', user.id);
+            });
+            
+            // Disable submit button
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Granting...';
+            
+            fetch('', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                
+                if (data.success) {
+                    // Show success message
+                    showNotification(data.message, 'success');
+                    // Close modal
+                    closeIndividualAccessModal();
+                    
+                    // Update Individual Access cell if HTML is provided
+                    if (data.individualAccessHtml && data.pagePath) {
+                        updateIndividualAccessCell(data.pagePath, data.individualAccessHtml);
+                    }
+                } else {
+                    // Show error message
+                    showNotification(data.error || 'Failed to grant access', 'error');
+                }
+            })
+            .catch(error => {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                console.error('Error:', error);
+                showNotification('An error occurred. Please try again.', 'error');
+            });
+            
+            return false;
+        }
+
+        function showNotification(message, type) {
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.ajax-notification');
+            existingNotifications.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `ajax-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-md shadow-lg transition-all duration-300 ${
+                type === 'success' 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-red-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        function updateIndividualAccessCell(pagePath, html) {
+            // Find the cell with matching data-page-path
+            // Escape special characters for CSS selector
+            const escapedPath = pagePath.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+            const cell = document.querySelector(`td.individual-access-cell[data-page-path="${escapedPath}"]`);
+            if (cell) {
+                cell.innerHTML = html;
+            } else {
+                // Fallback: try to find by attribute value (less strict)
+                const allCells = document.querySelectorAll('td.individual-access-cell');
+                allCells.forEach(c => {
+                    if (c.getAttribute('data-page-path') === pagePath) {
+                        c.innerHTML = html;
+                    }
+                });
+            }
         }
 
         function revokeIndividualAccess(pagePath, userId) {
@@ -2420,6 +2774,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_dispatch_handover_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addRLSSPage() {
+            if (confirm('Add RLSS page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_rlss_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
@@ -2709,6 +3080,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_caa_revenue_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addCAADailyReportPage() {
+            if (confirm('Add CAA Daily Report page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_caa_daily_report_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

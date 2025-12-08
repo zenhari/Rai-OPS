@@ -8,16 +8,6 @@ if (!isLoggedIn()) {
 }
 
 $user = getCurrentUser();
-if (!$user || !is_array($user)) {
-    header('Location: /login.php');
-    exit();
-}
-
-// Log page view
-logActivity('view', __FILE__, [
-    'page_name' => 'Dashboard',
-    'section' => 'Main Dashboard'
-]);
 
 // Get aircraft data for dashboard
 $aircraft = getAllAircraft();
@@ -324,23 +314,8 @@ try {
         }
         
         .timeline-row {
-            overflow: visible;
+            overflow: hidden;
             position: relative;
-            display: flex;
-        }
-        
-        .aircraft-label-sticky {
-            position: sticky;
-            left: 0;
-            z-index: 100;
-            background-color: rgb(249, 250, 251); /* bg-gray-50 */
-            border-right: 1px solid rgb(229, 231, 235); /* border-gray-200 */
-            min-width: 128px;
-        }
-        
-        .dark .aircraft-label-sticky {
-            background-color: rgb(31, 41, 55); /* dark:bg-gray-700 */
-            border-right-color: rgb(55, 65, 81); /* dark:border-gray-600 */
         }
         
         /* Horizontal grid lines - dynamically calculated based on max flights per day */
@@ -372,10 +347,12 @@ try {
             height: 32px;
             border-radius: 4px;
             cursor: pointer;
+            transition: all 0.2s ease;
             max-width: 100%;
             box-sizing: border-box;
         }
         .flight-bar:hover {
+            transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             z-index: 10;
         }
@@ -1348,22 +1325,11 @@ try {
                                 Dashboard
                             </h1>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                Welcome back, <?php echo htmlspecialchars($user['first_name'] ?? 'User'); ?>!
+                                Welcome back, <?php echo htmlspecialchars($user['first_name']); ?>!
                             </p>
                         </div>
                         
                         <div class="flex items-center space-x-4">
-                            <!-- Auto Refresh Controls -->
-                            <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-md p-1">
-                                <button id="autoRefreshToggle" class="px-3 py-2 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 shadow-sm" title="Toggle Auto Refresh">
-                                    <i class="fas fa-play" id="autoRefreshIcon"></i>
-                                    <span id="autoRefreshText" class="ml-1 text-sm">Play</span>
-                                </button>
-                                <div class="text-xs text-gray-600 dark:text-gray-400 px-2" id="refreshCountdown">
-                                    <span id="countdownTime">30</span>s
-                                </div>
-                            </div>
-                            
                             <!-- Notifications -->
                             <a href="/admin/odb/list.php" class="relative p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200" title="ODB Notifications">
                                 <i class="fas fa-bell"></i>
@@ -1558,9 +1524,9 @@ try {
                                         $aircraftMaxFlightsPerDay = 1;
                                     }
                                     
-                                    // Calculate height for single row (all flights in one row)
-                                    // 6px top + 32px bar + 2px spacing + 14px time labels + 2px bottom + 8px padding = 64px total
-                                    $min_row_height = 6 + 32 + 2 + 14 + 2 + 8;
+                                    // Calculate height based on max flights per day for this aircraft (not total flights)
+                                    // 32px bar height + 2px spacing + 14px time labels + 2px bottom spacing = 50px per flight
+                                    $min_row_height = 6 + (32 + 2 + 14 + 2) + (($aircraftMaxFlightsPerDay - 1) * 50) + 30 + 8;
                                     
                                     // Group flights by date for vertical positioning
                                     // Each day's flights start from row 1 (index 0)
@@ -1596,21 +1562,26 @@ try {
                                         $flightsByDateForAircraft[$flightDate][] = $flight;
                                     }
                                 ?>
-                                    <div class="flex mb-2 relative" style="min-width: <?php echo ($totalHours * 120) + 128; ?>px;">
+                                    <div class="flex mb-2" style="min-width: <?php echo ($totalHours * 120) + 128; ?>px;">
+                                        <!-- Aircraft Label -->
+                                        <div class="w-32 flex-shrink-0 flex items-center">
+                                            <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                                <?php echo htmlspecialchars($aircraft_rego); ?>
+                                            </span>
+                                        </div>
+                                        
                                         <!-- Timeline Row -->
                                         <div class="timeline-row flex-1 relative bg-gray-50 dark:bg-gray-700 rounded" style="min-height: <?php echo $min_row_height; ?>px; width: <?php echo $totalHours * 120; ?>px;">
-                                            <!-- Aircraft Label - Sticky to stay visible during horizontal scroll -->
-                                            <div class="aircraft-label-sticky w-32 flex-shrink-0 flex items-center justify-center bg-gray-50 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600" style="position: sticky; left: 0; z-index: 100; height: <?php echo $min_row_height; ?>px;">
-                                                <span class="text-sm font-medium text-gray-900 dark:text-white px-2">
-                                                    <?php echo htmlspecialchars($aircraft_rego); ?>
-                                                </span>
-                                            </div>
-                                            <!-- Timeline Content Container -->
-                                            <div class="flex-1 relative" style="min-width: <?php echo $totalHours * 120; ?>px;">
-                                            <!-- Horizontal Grid Lines - Single row for all flights -->
+                                            <!-- Horizontal Grid Lines - Based on max flights per day for this aircraft -->
                                             <div class="timeline-row-grid">
-                                                <!-- Single grid line for the one row -->
-                                                <div class="horizontal-grid-line" style="top: 6px;"></div>
+                                                <?php 
+                                                // Generate horizontal grid lines based on max flights per day for this specific aircraft
+                                                // Each line is at 50px intervals (6px top + 32px bar + 2px gap + 14px time + 2px bottom)
+                                                for ($i = 0; $i < $aircraftMaxFlightsPerDay; $i++): 
+                                                    $lineTop = 6 + ($i * 50); // 6px top offset + 50px per flight
+                                                ?>
+                                                    <div class="horizontal-grid-line" style="top: <?php echo $lineTop; ?>px;"></div>
+                                                <?php endfor; ?>
                                             </div>
                                             
                                             <!-- Day Boundary Lines (Vertical) - Separates different days -->
@@ -1647,17 +1618,10 @@ try {
                                             <?php endif; ?>
                                             
                                             <?php 
-                                            // Iterate through ALL flights for this aircraft (not grouped by date)
-                                            // All flights will be displayed in a single row
-                                            $allFlightsForAircraft = [];
+                                            // Iterate through flights grouped by date
+                                            // Each day's flights start from row 1 (index 0)
                                             foreach ($flightsByDateForAircraft as $flightDate => $dateFlights): 
-                                                foreach ($dateFlights as $flight):
-                                                    $allFlightsForAircraft[] = $flight;
-                                                endforeach;
-                                            endforeach;
-                                            
-                                            // Now iterate through all flights - all in one row
-                                            foreach ($allFlightsForAircraft as $flight): 
+                                                foreach ($dateFlights as $index => $flight): 
                                                     // Get TaskStart and TaskEnd (scheduled times)
                                                     $taskStart = $flight['TaskStart'] ?? null;
                                                     $taskEnd = $flight['TaskEnd'] ?? null;
@@ -1725,11 +1689,11 @@ try {
                                                             $delay_seconds = $calculated_delay_minutes * 60;
                                                             $is_estimated_delay = false;
                                                             $delay_minutes = $calculated_delay_minutes; // Use calculated delay minutes
-                                                    
+                                                            
                                                             // Delay bar: from TaskStart to TaskStart + calculated delay
                                                             $delay_start_timestamp = $task_start_dt->getTimestamp();
                                                             $delay_end_timestamp = $task_start_dt->getTimestamp() + $delay_seconds;
-                                                    
+                                                            
                                                             // Flight bar starts after delay
                                                             // If actual_out_utc exists, flight bar starts from actual_out_utc
                                                             // Otherwise, flight bar starts from TaskStart + delay
@@ -1815,10 +1779,10 @@ try {
                                                         $delay_duration_percent = (($delay_end_offset_from_timeline - $delay_start_offset_from_timeline) / $timelineDuration) * 100;
                                                         
                                                         // Clamp delay bar positions to timeline bounds
-                                                    $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
-                                                    $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
-                                                    
-                                                    // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
+                                                        $delay_start_position_percent = max(0, min(100, $delay_start_position_percent));
+                                                        $delay_end_position_percent = max(0, min(100, $delay_end_position_percent));
+                                                        
+                                                        // Ensure delay bar ends exactly where flight bar starts (no gap, no overlap)
                                                         if ($delay_end_position_percent > $start_position_percent) {
                                                             // Delay extends beyond flight start, adjust it to end where flight starts
                                                             $delay_end_position_percent = $start_position_percent;
@@ -1835,7 +1799,7 @@ try {
                                                             // Adjust end position if needed
                                                             if ($delay_start_position_percent + $delay_duration_percent <= $start_position_percent) {
                                                                 $delay_end_position_percent = $delay_start_position_percent + $delay_duration_percent;
-                                                        } else {
+                                                            } else {
                                                                 $delay_end_position_percent = $start_position_percent;
                                                                 $delay_duration_percent = max(0.5, $delay_end_position_percent - $delay_start_position_percent);
                                                             }
@@ -1854,8 +1818,7 @@ try {
                                                         $delay_minutes = 0; // Reset delay minutes to prevent showing delay bar
                                                     }
                                                     
-                                                    // All flights in one row - same top position for all
-                                                    $top_position = 6; // Fixed position for all flights in the same row
+                                                    $top_position = 6 + ($index * 50); // 50px spacing between flights (32px bar + 2px gap + 14px time + 2px bottom)
                                                     
                                                     // Get status color
                                                     $flight_status = $flight['ScheduledTaskStatus'] ?? '';
@@ -1879,8 +1842,7 @@ try {
                                                     
                                                     $delay_duration_percent = 0;
                                                     $delay_start_position_percent = 0;
-                                                    // All flights in one row - same top position for all
-                                                    $top_position = 4; // Fixed position for all flights in the same row
+                                                    $top_position = 4 + ($index * 25);
                                                     
                                                     // Get status color
                                                     $flight_status = $flight['ScheduledTaskStatus'] ?? '';
@@ -2004,8 +1966,8 @@ try {
                                                 
                                                 <?php endif; ?>
                                                 <?php endif; // Close timeline check ?>
-                                            <?php endforeach; // End allFlightsForAircraft loop ?>
-                                            </div> <!-- End Timeline Content Container -->
+                                                <?php endforeach; // End dateFlights loop ?>
+                                            <?php endforeach; // End flightsByDateForAircraft loop ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -3836,84 +3798,6 @@ try {
                 }
             }
         });
-        
-        // Auto Refresh Functionality
-        let autoRefreshInterval = null;
-        let countdownInterval = null;
-        let isAutoRefreshActive = false;
-        let countdownSeconds = 30;
-        const REFRESH_INTERVAL = 30000; // 30 seconds in milliseconds
-        
-        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
-        const autoRefreshIcon = document.getElementById('autoRefreshIcon');
-        const autoRefreshText = document.getElementById('autoRefreshText');
-        const countdownTime = document.getElementById('countdownTime');
-        
-        function startAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-            }
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-            }
-            
-            isAutoRefreshActive = true;
-            autoRefreshIcon.classList.remove('fa-play');
-            autoRefreshIcon.classList.add('fa-pause');
-            autoRefreshText.textContent = 'Pause';
-            
-            // Reset countdown
-            countdownSeconds = 30;
-            countdownTime.textContent = countdownSeconds;
-            
-            // Start countdown
-            countdownInterval = setInterval(function() {
-                countdownSeconds--;
-                countdownTime.textContent = countdownSeconds;
-                
-                if (countdownSeconds <= 0) {
-                    countdownSeconds = 30;
-                }
-            }, 1000);
-            
-            // Start auto refresh
-            autoRefreshInterval = setInterval(function() {
-                if (isAutoRefreshActive) {
-                    window.location.reload();
-                }
-            }, REFRESH_INTERVAL);
-        }
-        
-        function stopAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-            }
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
-            
-            isAutoRefreshActive = false;
-            autoRefreshIcon.classList.remove('fa-pause');
-            autoRefreshIcon.classList.add('fa-play');
-            autoRefreshText.textContent = 'Play';
-            countdownTime.textContent = '--';
-        }
-        
-        // Toggle auto refresh
-        if (autoRefreshToggle) {
-            autoRefreshToggle.addEventListener('click', function() {
-                if (isAutoRefreshActive) {
-                    stopAutoRefresh();
-                } else {
-                    startAutoRefresh();
-                }
-            });
-        }
-        
-        // Start auto refresh by default
-        startAutoRefresh();
     </script>
     
     <!-- ODB Notifications Modal -->

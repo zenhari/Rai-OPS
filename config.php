@@ -1570,7 +1570,8 @@ function getRosterAssignments($startDate, $endDate) {
     try {
         $pdo = getDBConnection();
         $stmt = $pdo->prepare("
-            SELECT r.*, sc.code as shift_code, sc.background_color, sc.text_color
+            SELECT r.*, sc.code as shift_code, sc.background_color, sc.text_color, 
+                   r.start_time, r.end_time
             FROM roster r
             LEFT JOIN shift_code sc ON r.shift_code_id = sc.id
             WHERE r.date >= ? AND r.date <= ?
@@ -1766,21 +1767,24 @@ function bulkSaveRosterAssignments($assignments, $deletions = [], $currentUserId
             $stmt->execute([$userId, $date]);
             $existing = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            $startTime = !empty($assignment['start_time']) ? $assignment['start_time'] : null;
+            $endTime = !empty($assignment['end_time']) ? $assignment['end_time'] : null;
+            
             if ($existing) {
                     // Update existing
                     $stmt = $pdo->prepare("
                         UPDATE roster 
-                        SET shift_code_id = ?, updated_by = ?, updated_at = NOW()
+                        SET shift_code_id = ?, start_time = ?, end_time = ?, updated_by = ?, updated_at = NOW()
                         WHERE id = ?
                     ");
-                    $stmt->execute([$shiftCodeId, $currentUserId, $existing['id']]);
+                    $stmt->execute([$shiftCodeId, $startTime, $endTime, $currentUserId, $existing['id']]);
                 } else {
                     // Insert new
                     $stmt = $pdo->prepare("
-                        INSERT INTO roster (user_id, date, shift_code_id, created_by, updated_by)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO roster (user_id, date, shift_code_id, start_time, end_time, created_by, updated_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([$userId, $date, $shiftCodeId, $currentUserId, $currentUserId]);
+                    $stmt->execute([$userId, $date, $shiftCodeId, $startTime, $endTime, $currentUserId, $currentUserId]);
             }
         }
         
