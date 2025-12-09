@@ -209,13 +209,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 if (darkModeIcon) {
-                    darkModeIcon.className = 'fas fa-moon';
+                darkModeIcon.className = 'fas fa-moon';
                 }
                 localStorage.setItem('darkMode', 'false');
             } else {
                 html.classList.add('dark');
                 if (darkModeIcon) {
-                    darkModeIcon.className = 'fas fa-sun';
+                darkModeIcon.className = 'fas fa-sun';
                 }
                 localStorage.setItem('darkMode', 'true');
             }
@@ -230,12 +230,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (savedDarkMode === 'true' || (savedDarkMode === null && systemPrefersDark)) {
                 document.documentElement.classList.add('dark');
                 if (darkModeIcon) {
-                    darkModeIcon.className = 'fas fa-sun';
+                darkModeIcon.className = 'fas fa-sun';
                 }
             } else {
                 document.documentElement.classList.remove('dark');
                 if (darkModeIcon) {
-                    darkModeIcon.className = 'fas fa-moon';
+                darkModeIcon.className = 'fas fa-moon';
                 }
             }
         }

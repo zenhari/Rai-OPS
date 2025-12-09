@@ -106,21 +106,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_TIMEOUT => 60, // Increased timeout to 60 seconds
+            CURLOPT_CONNECTTIMEOUT => 10, // Connection timeout
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer 9b1ce0da-09ae-41e5-9dcf-97d6cee9b1fd'
+                'Authorization: Bearer 9b1ce0da-09ae-41e5-9dcf-97d6cee9b1fd',
+                'Content-Type: application/json'
             ],
+            CURLOPT_VERBOSE => false,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
         ]);
+        
         $response = curl_exec($ch);
         $curlError = curl_error($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlInfo = curl_getinfo($ch);
         curl_close($ch);
         
         if ($curlError) {
+            $errorDetails = [
+                'error' => $curlError,
+                'url' => $url,
+                'icao_codes' => $icaoCodes,
+                'total_codes' => count($icaoCodes)
+            ];
+            
+            // Check if it's a timeout error
+            if (strpos($curlError, 'timed out') !== false || strpos($curlError, 'timeout') !== false) {
+                $errorDetails['suggestion'] = 'The API server may be slow or unreachable. Please try again later or contact the administrator.';
+            }
+            
             echo json_encode([
                 'success' => false,
                 'message' => 'Error fetching NOTAM data: ' . $curlError,
-                'data' => []
+                'data' => [],
+                'details' => $errorDetails
             ]);
             exit;
         }
@@ -130,7 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 'success' => false,
                 'message' => "API returned HTTP code {$httpCode}",
                 'data' => [],
-                'response' => substr($response, 0, 500)
+                'response' => substr($response, 0, 500),
+                'url' => $url,
+                'icao_codes' => $icaoCodes
             ]);
             exit;
         }
@@ -306,7 +328,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         if (data.success) {
                             displayResults(data);
                         } else {
-                            showError(data.message || 'Failed to load NOTAM data.');
+                            let errorMsg = data.message || 'Failed to load NOTAM data.';
+                            
+                            // Add more details if available
+                            if (data.details) {
+                                if (data.details.suggestion) {
+                                    errorMsg += '\n\n' + data.details.suggestion;
+                                }
+                                if (data.details.icao_codes && data.details.icao_codes.length > 0) {
+                                    errorMsg += '\n\nICAO Codes being queried: ' + data.details.icao_codes.join(', ');
+                                }
+                            }
+                            
+                            showError(errorMsg);
                         }
                         
                         loadBtn.disabled = false;
@@ -391,7 +425,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
 
             function showError(message) {
-                errorText.textContent = message;
+                // Replace \n with <br> for HTML display
+                errorText.innerHTML = message.replace(/\n/g, '<br>');
                 errorMessage.classList.remove('hidden');
             }
         });

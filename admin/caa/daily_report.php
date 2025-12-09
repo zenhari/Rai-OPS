@@ -503,8 +503,8 @@ if (isset($_POST['submit'])) {
                 <div class="max-w-4xl mx-auto">
                     <!-- Form Card -->
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
-                        <form method="post" class="space-y-6">
-                            <div>
+        <form method="post" class="space-y-6">
+            <div>
                                 <label for="persian_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     <i class="fas fa-calendar-alt mr-2"></i>Persian Date (Example: 1404/01/31)
                                 </label>
@@ -515,15 +515,15 @@ if (isset($_POST['submit'])) {
                                        placeholder="1404/01/31"
                                        class="w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all">
                                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Enter the date in Persian calendar format (YYYY/MM/DD)</p>
-                            </div>
+            </div>
 
                             <button type="submit" 
                                     name="submit"
                                     class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all flex items-center justify-center">
                                 <i class="fas fa-download mr-2"></i>
                                 Download Reports (ZIP)
-                            </button>
-                        </form>
+            </button>
+        </form>
                     </div>
 
                     <!-- Info Card -->
