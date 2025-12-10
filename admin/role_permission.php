@@ -440,6 +440,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_call_center_page':
+            $pagePath = 'admin/settings/call_center/index.php';
+            $pageName = 'Call Center';
+            $requiredRoles = ['admin'];
+            $description = 'Monitor and view all call records from Asterisk system';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Call Center page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Call Center page permission.';
+                }
+            } else {
+                $message = 'Call Center page permission already exists.';
+            }
+            break;
+
         case 'add_recency_management_page':
             $pagePath = 'admin/recency_management/index.php';
             $pageName = 'Recency Management';
@@ -1091,6 +1108,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } else {
                 $message = 'Flight Statistics page permission already exists.';
+            }
+            break;
+
+        case 'add_flight_data_page':
+            $pagePath = 'admin/flights/flight_data/index.php';
+            $pageName = 'Flight Data';
+            $requiredRoles = ['admin', 'manager', 'pilot'];
+            $description = 'View today\'s flight timeline with all flight information displayed in a visual timeline format';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Flight Data page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Flight Data page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Flight Data page permission already exists.';
             }
             break;
 
@@ -1956,6 +1990,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addDeleteCertificatePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-trash mr-2"></i>Delete Certificate
                         </button>
+                        <button onclick="addCallCenterPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-phone-alt mr-2"></i>Call Center
+                        </button>
                         <button onclick="addRecencyManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-cog mr-2"></i>Recency Management
                         </button>
@@ -2071,6 +2108,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addFlightStatisticsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-chart-line mr-2"></i>Flight Statistics
+                        </button>
+                        <button onclick="addFlightDataPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-database mr-2"></i>Flight Data
                         </button>
                         <button onclick="addContactsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-address-book mr-2"></i>Contacts
@@ -2939,6 +2979,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
+        function addCallCenterPage() {
+            if (confirm('Add Call Center page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_call_center_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         function addRecencyManagementPage() {
             if (confirm('Add Recency Management page permission with admin role?')) {
                 const button = event.target;
@@ -3579,6 +3636,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_flight_statistics_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addFlightDataPage() {
+            if (confirm('Add Flight Data page permission with admin, manager, and pilot roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_flight_data_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

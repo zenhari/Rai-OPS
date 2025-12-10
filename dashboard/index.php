@@ -915,6 +915,7 @@ try {
             background: white;
             color: #0f172a;
             transition: all 0.15s ease;
+            width: 100%;
         }
         
         .flight-edit-form-select:focus {
@@ -947,6 +948,134 @@ try {
                 border-color: #60a5fa;
                 box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
             }
+        }
+        
+        /* Searchable Select Styles */
+        .searchable-select-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        
+        .searchable-select-input {
+            width: 100%;
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            color: #0f172a;
+            transition: all 0.15s ease;
+            cursor: text;
+        }
+        
+        .searchable-select-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        
+        .searchable-select-input::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #64748b;
+        }
+        
+        .searchable-select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #64748b;
+            font-size: 10px;
+            z-index: 1;
+        }
+        
+        .dark .searchable-select-input {
+            background: #0f172a;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        
+        .dark .searchable-select-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
+        }
+        
+        .searchable-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+        }
+        
+        .dark .searchable-select-dropdown {
+            background: #0f172a;
+            border-color: #334155;
+        }
+        
+        .searchable-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #0f172a;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.15s ease;
+        }
+        
+        .searchable-select-option:last-child {
+            border-bottom: none;
+        }
+        
+        .searchable-select-option:hover {
+            background-color: #f1f5f9;
+        }
+        
+        .searchable-select-option.selected {
+            background-color: #dbeafe;
+            color: #1e40af;
+            font-weight: 500;
+        }
+        
+        .searchable-select-option.highlighted {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .dark .searchable-select-option {
+            color: #f1f5f9;
+            border-bottom-color: #334155;
+        }
+        
+        .dark .searchable-select-option:hover {
+            background-color: #334155;
+        }
+        
+        .dark .searchable-select-option.selected {
+            background-color: #1e3a8a;
+            color: #93c5fd;
+        }
+        
+        .dark .searchable-select-option.highlighted {
+            background-color: #312e81;
+            color: #a5b4fc;
+        }
+        
+        .searchable-select-option.hidden {
+            display: none;
         }
         
         /* Calculated fields (readonly fields with calculated values) */
@@ -2842,20 +2971,52 @@ try {
                             <div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 12px;" class="delay-code-grid">
                                 <div>
                                     <label class="flight-edit-form-label">Code</label>
-                                    <select name="${codeField}" id="${codeField}" onchange="updateDV93Description(${i}, this.value)" class="flight-edit-form-select" ${!isEnabled && i > 1 ? 'disabled' : ''}>
-                                        <option value="">-- Select Code --</option>
-                                        ${delayCodes.map(code => {
-                                            const isSelected = code.code === selectedCode ? 'selected' : '';
-                                            // Truncate description if too long (max 80 characters)
-                                            let displayDescription = code.description || '';
-                                            if (displayDescription.length > 80) {
-                                                displayDescription = displayDescription.substring(0, 80) + '...';
-                                            }
-                                            // Show code + description in option
-                                            const displayText = `${escapeHtml(code.code)} - ${escapeHtml(displayDescription)}`;
-                                            return `<option value="${escapeHtml(code.code)}" data-description="${escapeHtml(code.description)}" ${isSelected}>${displayText}</option>`;
-                                        }).join('')}
-                                    </select>
+                                    <div class="searchable-select-wrapper" style="position: relative;">
+                                        <input type="text" 
+                                               id="${codeField}_search" 
+                                               class="flight-edit-form-select searchable-select-input" 
+                                               placeholder="-- Select Code or Search --"
+                                               autocomplete="off"
+                                               ${!isEnabled && i > 1 ? 'disabled' : ''}
+                                               oninput="filterDelayCodes(${i}, this.value)"
+                                               onfocus="showDelayCodeDropdown(${i})"
+                                               onblur="setTimeout(() => hideDelayCodeDropdown(${i}), 200)"
+                                               onkeydown="handleDelayCodeKeydown(event, ${i})"
+                                               value="${selectedCode ? (() => {
+                                                   const selectedCodeObj = delayCodes.find(c => c.code === selectedCode);
+                                                   if (selectedCodeObj) {
+                                                       let displayDescription = selectedCodeObj.description || '';
+                                                       if (displayDescription.length > 80) {
+                                                           displayDescription = displayDescription.substring(0, 80) + '...';
+                                                       }
+                                                       return escapeHtml(`${selectedCodeObj.code} - ${displayDescription}`);
+                                                   }
+                                                   return escapeHtml(selectedCode);
+                                               })() : ''}">
+                                        <input type="hidden" 
+                                               name="${codeField}" 
+                                               id="${codeField}" 
+                                               value="${escapeHtml(selectedCode)}"
+                                               onchange="updateDV93Description(${i}, this.value)">
+                                        <div id="${codeField}_dropdown" class="searchable-select-dropdown" style="display: none;">
+                                            ${delayCodes.map(code => {
+                                                const isSelected = code.code === selectedCode;
+                                                let displayDescription = code.description || '';
+                                                if (displayDescription.length > 80) {
+                                                    displayDescription = displayDescription.substring(0, 80) + '...';
+                                                }
+                                                const displayText = `${escapeHtml(code.code)} - ${escapeHtml(displayDescription)}`;
+                                                const escapedCode = escapeHtml(code.code).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                                const escapedDisplayText = displayText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                                return `<div class="searchable-select-option ${isSelected ? 'selected' : ''}" 
+                                                            data-value="${escapeHtml(code.code)}" 
+                                                            data-description="${escapeHtml(code.description)}"
+                                                            onclick="selectDelayCode(${i}, '${escapedCode}', '${escapedDisplayText}')">
+                                                            ${displayText}
+                                                        </div>`;
+                                            }).join('')}
+                                        </div>
+                                    </div>
                                     <div id="code_description_${i}" class="delay-code-description" style="display: ${selectedCode ? 'block' : 'none'};">
                                         ${selectedCode ? (() => {
                                             const selectedCodeObj = delayCodes.find(c => c.code === selectedCode);
@@ -3035,25 +3196,146 @@ try {
             if (minutesInput) minutesInput.disabled = false;
         }
         
+        // Searchable Select Functions for Delay Codes
+        function filterDelayCodes(rowNumber, searchText) {
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const dropdown = document.getElementById(`${codeField}_dropdown`);
+            if (!dropdown) return;
+            
+            const searchLower = searchText.toLowerCase().trim();
+            const options = dropdown.querySelectorAll('.searchable-select-option');
+            
+            let hasVisible = false;
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (!searchText || text.includes(searchLower)) {
+                    option.classList.remove('hidden');
+                    hasVisible = true;
+                } else {
+                    option.classList.add('hidden');
+                }
+            });
+            
+            // Show dropdown if there are visible options
+            if (hasVisible && searchText) {
+                showDelayCodeDropdown(rowNumber);
+            } else if (!searchText) {
+                showDelayCodeDropdown(rowNumber);
+            }
+        }
+        
+        function showDelayCodeDropdown(rowNumber) {
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const dropdown = document.getElementById(`${codeField}_dropdown`);
+            if (dropdown) {
+                dropdown.style.display = 'block';
+            }
+        }
+        
+        function hideDelayCodeDropdown(rowNumber) {
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const dropdown = document.getElementById(`${codeField}_dropdown`);
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        function selectDelayCode(rowNumber, codeValue, displayText) {
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const hiddenInput = document.getElementById(codeField);
+            const searchInput = document.getElementById(`${codeField}_search`);
+            const dropdown = document.getElementById(`${codeField}_dropdown`);
+            
+            if (hiddenInput) {
+                hiddenInput.value = codeValue;
+                // Trigger change event
+                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (searchInput) {
+                searchInput.value = displayText;
+            }
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+            
+            // Update selected state in dropdown
+            const options = dropdown ? dropdown.querySelectorAll('.searchable-select-option') : [];
+            options.forEach(option => {
+                option.classList.remove('selected');
+                if (option.getAttribute('data-value') === codeValue) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // Trigger updateDV93Description
+            updateDV93Description(rowNumber, codeValue);
+        }
+        
+        function handleDelayCodeKeydown(event, rowNumber) {
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const dropdown = document.getElementById(`${codeField}_dropdown`);
+            
+            if (!dropdown || dropdown.style.display === 'none') return;
+            
+            const visibleOptions = Array.from(dropdown.querySelectorAll('.searchable-select-option:not(.hidden)'));
+            const currentSelected = dropdown.querySelector('.searchable-select-option.highlighted');
+            let currentIndex = currentSelected ? visibleOptions.indexOf(currentSelected) : -1;
+            
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (currentIndex < visibleOptions.length - 1) {
+                    if (currentSelected) currentSelected.classList.remove('highlighted');
+                    currentIndex++;
+                    visibleOptions[currentIndex].classList.add('highlighted');
+                    visibleOptions[currentIndex].scrollIntoView({ block: 'nearest' });
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (currentIndex > 0) {
+                    if (currentSelected) currentSelected.classList.remove('highlighted');
+                    currentIndex--;
+                    visibleOptions[currentIndex].classList.add('highlighted');
+                    visibleOptions[currentIndex].scrollIntoView({ block: 'nearest' });
+                }
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (currentSelected) {
+                    const codeValue = currentSelected.getAttribute('data-value');
+                    const displayText = currentSelected.textContent.trim();
+                    selectDelayCode(rowNumber, codeValue, displayText);
+                }
+            } else if (event.key === 'Escape') {
+                hideDelayCodeDropdown(rowNumber);
+            }
+        }
+        
         function updateDV93Description(rowNumber, selectedValue) {
-            const codeSelect = document.getElementById(rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`);
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const hiddenInput = document.getElementById(codeField);
             const dv93Input = document.getElementById(`dv93_${rowNumber}`);
             const subCodeContainer = document.getElementById(`sub_code_${rowNumber}_container`);
             const subCodeSelect = document.getElementById(`delay_diversion_sub_codes_${rowNumber}`);
             const remarkContainer = document.getElementById(`remark_${rowNumber}_container`);
-            const delayRow = codeSelect ? codeSelect.closest('.flight-edit-delay-row') : null;
+            const delayRow = hiddenInput ? hiddenInput.closest('.flight-edit-delay-row') : null;
             const delayRowTitle = delayRow ? delayRow.querySelector('.delay-row-title') : null;
             const descriptionDiv = document.getElementById(`code_description_${rowNumber}`);
             
-            if (!codeSelect || !dv93Input) return;
+            if (!hiddenInput || !dv93Input) return;
+            
+            // Find description from globalDelayCodes
+            let description = '';
+            if (selectedValue && globalDelayCodes) {
+                const selectedCodeObj = globalDelayCodes.find(c => c.code === selectedValue);
+                if (selectedCodeObj) {
+                    description = selectedCodeObj.description || '';
+                }
+            }
             
             // Update description display
             if (descriptionDiv) {
-                if (selectedValue) {
-                    const selectedOption = codeSelect.options[codeSelect.selectedIndex];
-                    const description = selectedOption ? selectedOption.getAttribute('data-description') : '';
-                    descriptionDiv.textContent = description || '';
-                    descriptionDiv.style.display = description ? 'block' : 'none';
+                if (selectedValue && description) {
+                    descriptionDiv.textContent = description;
+                    descriptionDiv.style.display = 'block';
                 } else {
                     descriptionDiv.textContent = '';
                     descriptionDiv.style.display = 'none';
@@ -3061,17 +3343,16 @@ try {
             }
             
             if (selectedValue) {
-                const selectedOption = codeSelect.options[codeSelect.selectedIndex];
-                const description = selectedOption.getAttribute('data-description');
+                // Update DV93 input
+                dv93Input.value = description;
                 
                 // Update title in header
                 if (delayRowTitle) {
                     delayRowTitle.textContent = `Delay/Diversion Code ${rowNumber}: ${selectedValue}`;
                 }
                 
-                if (description) {
-                    dv93Input.value = description;
-                }
+                // Update DV93 input
+                dv93Input.value = description;
                 
                 // Handle sub-codes for code 93 (RA) - get from globalDelayCodes
                 if (selectedValue === '93 (RA)') {

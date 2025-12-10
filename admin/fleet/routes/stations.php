@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $country = trim($_POST['country'] ?? '');
             $ownedByBase = trim($_POST['owned_by_base'] ?? '');
             $slotCoordination = trim($_POST['slot_coordination'] ?? '');
+            $locationType = trim($_POST['location_type'] ?? 'Domestic');
             
             // Site properties checkboxes
             $isAla = isset($_POST['is_ala']) ? 1 : 0;
@@ -60,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'state' => $state,
                     'postcode' => $postcode,
                     'country' => $country,
+                    'location_type' => $locationType,
                     'owned_by_base' => $ownedByBase,
                     'slot_coordination' => $slotCoordination,
                     'is_ala' => $isAla,
@@ -98,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $country = trim($_POST['country'] ?? '');
             $ownedByBase = trim($_POST['owned_by_base'] ?? '');
             $slotCoordination = trim($_POST['slot_coordination'] ?? '');
+            $locationType = trim($_POST['location_type'] ?? 'Domestic');
             
             // Site properties checkboxes
             $isAla = isset($_POST['is_ala']) ? 1 : 0;
@@ -125,6 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'state' => $state,
                     'postcode' => $postcode,
                     'country' => $country,
+                    'location_type' => $locationType,
                     'owned_by_base' => $ownedByBase,
                     'slot_coordination' => $slotCoordination,
                     'is_ala' => $isAla,
@@ -185,6 +189,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         'ICAO Code',
         'Short Name',
         'Base',
+        'Location Type',
         'Country',
         'City/Suburb',
         'Created At',
@@ -199,6 +204,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $station['icao_code'] ?? '',
             $station['short_name'] ?? '',
             $station['is_base'] ? 'Yes' : 'No',
+            $station['location_type'] ?? 'Domestic',
             $station['country'] ?? '',
             $station['city_suburb'] ?? '',
             $station['created_at'] ?? '',
@@ -510,13 +516,14 @@ try {
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Latitude</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Longitude</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Base</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Location Type</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php if (empty($stations)): ?>
                                     <tr>
-                                        <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                                        <td colspan="9" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                                             No stations found
                                         </td>
                                     </tr>
@@ -562,6 +569,18 @@ try {
                                                 <?php else: ?>
                                                     <span class="text-gray-400 dark:text-gray-500">-</span>
                                                 <?php endif; ?>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <?php 
+                                                $locationType = $station['location_type'] ?? 'Domestic';
+                                                $locationTypeClass = $locationType === 'International' 
+                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' 
+                                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+                                                ?>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php echo $locationTypeClass; ?>">
+                                                    <i class="fas fa-globe mr-1"></i>
+                                                    <?php echo htmlspecialchars($locationType); ?>
+                                                </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <div class="flex space-x-2">
@@ -639,6 +658,17 @@ try {
                                 <input type="text" id="short_name" name="short_name" maxlength="10"
                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                                        placeholder="e.g., IKA">
+                            </div>
+                            
+                            <div>
+                                <label for="location_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Location Type *
+                                </label>
+                                <select id="location_type" name="location_type" required
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="Domestic" selected>Domestic</option>
+                                    <option value="International">International</option>
+                                </select>
                             </div>
                             
                             <div>
@@ -920,6 +950,17 @@ try {
                             </div>
                             
                             <div>
+                                <label for="edit_location_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Location Type *
+                                </label>
+                                <select id="edit_location_type" name="location_type" required
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="Domestic">Domestic</option>
+                                    <option value="International">International</option>
+                                </select>
+                            </div>
+                            
+                            <div>
                                 <label class="flex items-center">
                                     <input type="checkbox" id="edit_is_base" name="is_base" value="1"
                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
@@ -1174,7 +1215,7 @@ try {
             document.getElementById('addStationModal').classList.add('hidden');
         }
 
-        function openEditStationModal(id, name, iataCode, icaoCode, shortName, isBase, timezone, latitude, longitude, magneticVariation, addressLine1, addressLine2, citySuburb, state, postcode, country, ownedByBase, slotCoordination, isAla, isFuelDepot, isBaseOffice, isCustomsImmigration, isFixedBaseOperators, isHls, isMaintenanceEngineering) {
+        function openEditStationModal(id, name, iataCode, icaoCode, shortName, isBase, timezone, latitude, longitude, magneticVariation, addressLine1, addressLine2, citySuburb, state, postcode, country, ownedByBase, slotCoordination, locationType, isAla, isFuelDepot, isBaseOffice, isCustomsImmigration, isFixedBaseOperators, isHls, isMaintenanceEngineering) {
             document.getElementById('edit_station_id').value = id;
             document.getElementById('edit_station_name').value = name;
             document.getElementById('edit_iata_code').value = iataCode;
@@ -1193,6 +1234,7 @@ try {
             document.getElementById('edit_country').value = country || '';
             document.getElementById('edit_owned_by_base').value = ownedByBase || '';
             document.getElementById('edit_slot_coordination').value = slotCoordination || '';
+            document.getElementById('edit_location_type').value = locationType || 'Domestic';
             document.getElementById('edit_is_ala').checked = isAla;
             document.getElementById('edit_is_fuel_depot').checked = isFuelDepot;
             document.getElementById('edit_is_base_office').checked = isBaseOffice;

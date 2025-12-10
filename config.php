@@ -5441,7 +5441,7 @@ function getPayloadWeightByTemperature($payloadData, $temperature) {
 function createStation($data) {
     $db = getDBConnection();
     
-    $sql = "INSERT INTO stations (station_name, iata_code, icao_code, is_base, short_name, timezone, latitude, longitude, magnetic_variation, address_line1, address_line2, city_suburb, state, postcode, country, owned_by_base, slot_coordination, is_ala, is_fuel_depot, is_base_office, is_customs_immigration, is_fixed_base_operators, is_hls, is_maintenance_engineering) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO stations (station_name, iata_code, icao_code, is_base, short_name, timezone, latitude, longitude, magnetic_variation, address_line1, address_line2, city_suburb, state, postcode, country, location_type, owned_by_base, slot_coordination, is_ala, is_fuel_depot, is_base_office, is_customs_immigration, is_fixed_base_operators, is_hls, is_maintenance_engineering) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($sql);
     
     return $stmt->execute([
@@ -5460,6 +5460,7 @@ function createStation($data) {
         $data['state'] ?? null,
         $data['postcode'] ?? null,
         $data['country'] ?? null,
+        $data['location_type'] ?? 'Domestic',
         $data['owned_by_base'] ?? null,
         $data['slot_coordination'] ?? null,
         $data['is_ala'] ?? 0,
@@ -5484,7 +5485,7 @@ function updateStation($id, $data) {
     $allowedFields = [
         'station_name', 'iata_code', 'icao_code', 'is_base', 'short_name', 'timezone', 
         'latitude', 'longitude', 'magnetic_variation', 'address_line1', 'address_line2', 
-        'city_suburb', 'state', 'postcode', 'country', 'owned_by_base', 'slot_coordination',
+        'city_suburb', 'state', 'postcode', 'country', 'location_type', 'owned_by_base', 'slot_coordination',
         'is_ala', 'is_fuel_depot', 'is_base_office', 'is_customs_immigration', 
         'is_fixed_base_operators', 'is_hls', 'is_maintenance_engineering'
     ];

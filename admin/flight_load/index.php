@@ -74,6 +74,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $has_search_params || $load_all) {
     $loading = false;
 }
 
+// Handle Excel Export
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    // Increase memory limit and execution time for large exports
+    ini_set('memory_limit', '1024M');
+    ini_set('max_execution_time', 600);
+    
+    $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+    
+    // Set headers for Excel download first
+    $filename = 'flight_load_tickets_' . date('Y-m-d_H-i-s') . '.xls';
+    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    
+    // UTF-8 BOM for Excel
+    echo "\xEF\xBB\xBF";
+    
+    // Start table
+    echo '<table border="1">';
+    
+    // Header row
+    echo '<tr>';
+    echo '<th>Passenger Name</th>';
+    echo '<th>Document Number</th>';
+    echo '<th>Contact</th>';
+    echo '<th>Flight Number</th>';
+    echo '<th>PNR</th>';
+    echo '<th>Origin</th>';
+    echo '<th>Destination</th>';
+    echo '<th>Departure Date</th>';
+    echo '<th>Sales Date (GMT)</th>';
+    echo '<th>Ticket Code</th>';
+    echo '<th>Flight Class</th>';
+    echo '<th>Status</th>';
+    echo '<th>Created At</th>';
+    echo '</tr>';
+    
+    // Flush output buffer to start streaming
+    if (ob_get_level()) {
+        ob_end_flush();
+    }
+    
+    // Get all tickets from database and stream output (no array storage)
+    try {
+        $db = getDBConnection();
+        $whereClause = '';
+        $params = [];
+        
+        if (!empty($search)) {
+            $whereClause = "WHERE 
+                ticket_code LIKE ? OR 
+                docs LIKE ? OR 
+                passenger_contact LIKE ? OR 
+                passenger_full_name LIKE ? OR 
+                flight_no LIKE ? OR 
+                pnr LIKE ?";
+            $searchParam = "%$search%";
+            $params = array_fill(0, 6, $searchParam);
+        }
+        
+        // Get all records without LIMIT - stream results
+        $sql = "SELECT * FROM tickets $whereClause ORDER BY created_at DESC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        
+        // Process rows one by one and output immediately (streaming)
+        $rowCount = 0;
+        while ($ticket = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($ticket['passenger_full_name'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['docs'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['passenger_contact'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['flight_no'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['pnr'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['origin'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['destination'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['departure_date'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['sales_date_gmt'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['ticket_code'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['flight_class_code'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['coupon_status'] ?? 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($ticket['created_at'] ?? 'N/A') . '</td>';
+            echo '</tr>';
+            
+            $rowCount++;
+            
+            // Flush output every 100 rows to prevent memory issues
+            if ($rowCount % 100 == 0) {
+                flush();
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error getting tickets for export: " . $e->getMessage());
+    }
+    
+    echo '</table>';
+    exit;
+}
+
 // Get tickets from database
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $tickets_data = getAllTickets($page, $limit, $search);
@@ -256,9 +359,16 @@ $total_pages = ceil($total_count / $limit);
                 <?php if (!empty($tickets_data)): ?>
                 <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">
-                            Tickets in Database (<?php echo count($tickets_data); ?> results)
-                        </h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                                Tickets in Database (<?php echo count($tickets_data); ?> results)
+                            </h3>
+                            <a href="?<?php echo http_build_query(array_merge($_GET, ['export' => 'excel'])); ?>" 
+                               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
+                                <i class="fas fa-file-excel mr-2"></i>
+                                Download Excel
+                            </a>
+                        </div>
                     </div>
                     
                     <div class="overflow-x-auto">
