@@ -368,20 +368,20 @@ if ($selectedFlight) {
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rego</th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Route</th>
                                             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                         <?php foreach ($flights as $flight): ?>
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($flight['TaskName']); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($flight['Rego'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($flight['Route'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                                                 <div class="flex justify-center space-x-2">
                                                     <a href="?date=<?php echo urlencode($selectedDate); ?>&task_name=<?php echo urlencode($flight['TaskName']); ?>&action=document" 
@@ -393,15 +393,15 @@ if ($selectedFlight) {
                                                         <i class="fas fa-plane mr-1.5"></i>Follow Flight
                                                     </a>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                        </td>
+                                    </tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
-                            </div>
+                                            </div>
                         <?php endif; ?>
                     <?php endif; ?>
-                </div>
+                                            </div>
                 <?php else: ?>
                 <!-- Basic Flight Information Form -->
                 <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 mb-6 no-print">
@@ -412,16 +412,16 @@ if ($selectedFlight) {
                         <div>
                             <label for="FltDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Date *</label>
                             <input type="date" id="FltDate" name="FltDate" value="<?php echo htmlspecialchars($selectedDate); ?>" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
-                        </div>
+                                            </div>
                         <div>
                             <label for="FlightNo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Number</label>
                             <input type="text" id="FlightNo" name="FlightNo" value="<?php echo htmlspecialchars($selectedFlight['TaskName'] ?? ''); ?>" readonly class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400">
-                        </div>
+                                            </div>
                         <div>
                             <label for="Rego" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aircraft Register</label>
                             <input type="text" id="Rego" name="Rego" value="<?php echo htmlspecialchars($selectedFlight['Rego'] ?? ''); ?>" readonly class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400">
-                        </div>
-                    </div>
+                                            </div>
+                                            </div>
                     
                     <!-- Row 2: Origin, Destination, and Route Preview -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -505,20 +505,20 @@ if ($selectedFlight) {
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="flight_rules_I" value="I" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">I</span>
-                                </label>
+                                                </label>
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="flight_rules_Y" value="Y" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">Y</span>
-                                </label>
+                                                </label>
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="flight_rules_V" value="V" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">V</span>
-                                </label>
+                                                </label>
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="flight_rules_Z" value="Z" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">Z</span>
-                                </label>
-                            </div>
+                                                </label>
+                                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">FLIGHT PERM</label>
@@ -535,20 +535,20 @@ if ($selectedFlight) {
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="wx_dep_ad" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DEP AD</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="wx_dstn_ad" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DSTN AD</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="wx_dstn_altn" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DSTN ALTN</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="wx_other_altn" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">OTHER ALTN</span>
-                            </label>
-                        </div>
+                                                </label>
+                                            </div>
                     </div>
                     
                     <!-- Row 6: NOTAM -->
@@ -558,22 +558,22 @@ if ($selectedFlight) {
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="notam_dep_ad" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DEP AD</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="notam_dstn_ad" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DSTN AD</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="notam_dstn_altn" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">DSTN ALTN</span>
-                            </label>
+                                                </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="notam_other_altn" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                                 <span class="text-sm text-gray-700 dark:text-gray-300">OTHER ALTN</span>
-                            </label>
+                                                </label>
+                                            </div>
                         </div>
-                    </div>
-                    
+
                     <!-- Row 7: MEL/CDL Reference -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">MEL/CDL Reference</label>
@@ -581,86 +581,86 @@ if ($selectedFlight) {
                             <div class="overflow-x-auto">
                                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                     <thead class="bg-gray-50 dark:bg-gray-700">
-                                        <tr>
+                                    <tr>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ETL Number</th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Report Number</th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">MEL Category</th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reference Rev No Date</th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">MEL/CDL Limitation</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                         <?php foreach ($melItems as $index => $item): ?>
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($item['etl_number'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($item['report_number'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($item['mel_cat'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                                 <?php echo htmlspecialchars($item['reference_revno_date'] ?? 'N/A'); ?>
-                                            </td>
+                                        </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <input type="text" 
                                                        name="mel_limitation[<?php echo htmlspecialchars($item['id'] ?? $index); ?>]" 
                                                        id="mel_limitation_<?php echo htmlspecialchars($item['id'] ?? $index); ?>"
                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                                                        placeholder="Enter limitation...">
-                                            </td>
-                                        </tr>
+                                        </td>
+                                    </tr>
                                         <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
+                                </tbody>
+                            </table>
+                        </div>
                         <?php else: ?>
                             <div class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-4">
                                 <p class="text-sm text-gray-500 dark:text-gray-400 text-center">No MEL/CDL items found or API error occurred.</p>
                             </div>
                         <?php endif; ?>
                     </div>
-                </div>
-                
+                        </div>
+
                 <!-- Crew Information -->
                 <?php if (!empty($crewMembers)): ?>
                 <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 mb-6 no-print">
                     <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Crew Information</h2>
                     
-                    <div class="overflow-x-auto">
+                        <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
+                                    <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php foreach ($crewMembers as $crew): ?>
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                         <?php echo htmlspecialchars($crew['first_name'] . ' ' . $crew['last_name']); ?>
-                                    </td>
+                                        </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                         <?php echo htmlspecialchars($crew['role'] ?: 'N/A'); ?>
-                                    </td>
-                                </tr>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                                </tbody>
+                            </table>
+                        </div>
                     
                     <?php if (empty($crewMembers)): ?>
                         <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No crew members assigned to this flight.</p>
                     <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                <?php endif; ?>
                 </div>
-                <?php endif; ?>
-                <?php endif; ?>
             </div>
         </div>
-    </div>
 
     <script>
         // Update Route Preview

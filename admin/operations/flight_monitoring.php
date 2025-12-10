@@ -1226,7 +1226,7 @@ foreach ($flights_by_aircraft as $aircraft_rego => $aircraft_flights_by_date) {
                                         'Boarding' => '#ADD8E6',          // Light Blue
                                         'Cancelled' => '#FF0000',         // Red
                                         'Complete' => '#32CD32',          // Green
-                                        'Confirmed' => '#006400',         // Dark Green
+                                        'Confirmed' => '#242526',         // Dark Green
                                         'Delayed' => '#FFA500',           // Orange
                                         'Diverted' => '#8B0000',          // Dark Red
                                         'Gate Closed' => '#FFD700',        // Gold
@@ -1237,7 +1237,7 @@ foreach ($flights_by_aircraft as $aircraft_rego => $aircraft_flights_by_date) {
                                         'Ready' => '#00FF00',             // Bright Green
                                         'Return to Ramp' => '#FF8C00',    // Dark Orange
                                         'Start' => '#4682B4',             // Steel Blue
-                                        'Takeoff' => '#228B22',           // Forest Green
+                                        'Takeoff' => '#EE85BF',           // Forest Green
                                         'Taxi' => '#2F4F4F'               // Dark Slate Gray
                                     ];
                                     return $statusColors[$status] ?? '#3b82f6'; // Default blue

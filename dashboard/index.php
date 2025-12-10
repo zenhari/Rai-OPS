@@ -1496,7 +1496,7 @@ try {
                                         'Boarding' => '#ADD8E6',          // Light Blue
                                         'Cancelled' => '#FF0000',         // Red
                                         'Complete' => '#32CD32',          // Green
-                                        'Confirmed' => '#006400',         // Dark Green
+                                        'Confirmed' => '#242526',         // Dark Green
                                         'Delayed' => '#FFA500',           // Orange
                                         'Diverted' => '#8B0000',          // Dark Red
                                         'Gate Closed' => '#FFD700',        // Gold

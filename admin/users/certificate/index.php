@@ -13,6 +13,49 @@ $currentPage = 1;
 $recordsPerPage = 100;
 $totalPages = 0;
 
+// Check delete permission
+$canDelete = hasPageAccess('admin/users/certificate/delete');
+
+// Handle delete action
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'delete_certificate') {
+    if (!$canDelete) {
+        $error = 'You do not have permission to delete certificates.';
+    } else {
+        $certificateId = intval($_POST['certificate_id'] ?? 0);
+        if ($certificateId > 0) {
+            try {
+                $db = getDBConnection();
+                $stmt = $db->prepare("DELETE FROM certificates WHERE id = ?");
+                if ($stmt->execute([$certificateId])) {
+                    // Redirect to preserve filters and show success message
+                    $redirectParams = [];
+                    if (!empty($_GET['nationalid'])) $redirectParams['nationalid'] = $_GET['nationalid'];
+                    if (!empty($_GET['mobile'])) $redirectParams['mobile'] = $_GET['mobile'];
+                    if (!empty($_GET['coursename'])) $redirectParams['coursename'] = $_GET['coursename'];
+                    if (!empty($_GET['page'])) $redirectParams['page'] = $_GET['page'];
+                    $redirectParams['deleted'] = '1';
+                    
+                    $redirectUrl = '?' . http_build_query($redirectParams);
+                    header('Location: ' . $redirectUrl);
+                    exit();
+                } else {
+                    $error = 'Failed to delete certificate.';
+                }
+            } catch (Exception $e) {
+                error_log("Error deleting certificate: " . $e->getMessage());
+                $error = 'An error occurred while deleting the certificate.';
+            }
+        } else {
+            $error = 'Invalid certificate ID.';
+        }
+    }
+}
+
+// Show success message if redirected after delete
+if (isset($_GET['deleted']) && $_GET['deleted'] == '1') {
+    $message = 'Certificate deleted successfully.';
+}
+
 // Handle form submission and pagination
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $currentPage = max(1, intval($_GET['page'] ?? 1));
@@ -376,9 +419,20 @@ function formatDate($date) {
                                                         <i class="fas fa-eye"></i>
                                                     </button>
                                                     <button onclick="printCertificate('<?php echo htmlspecialchars(json_encode($certificate), ENT_QUOTES); ?>')" 
-                                                            class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300" title="Print">
+                                                            class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-3" title="Print">
                                                         <i class="fas fa-print"></i>
                                                     </button>
+                                                    <?php if ($canDelete): ?>
+                                                    <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this certificate? This action cannot be undone.');">
+                                                        <input type="hidden" name="action" value="delete_certificate">
+                                                        <input type="hidden" name="certificate_id" value="<?php echo intval($certificate['id']); ?>">
+                                                        <button type="submit" 
+                                                                class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300" 
+                                                                title="Delete Certificate">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -506,7 +560,7 @@ function formatDate($date) {
                             <div class="space-y-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</label>
-                                    <p class="text-sm text-gray-900 dark:text-white">${certificate.name || 'N/A'}</p>
+                                    <p class="text-sm text-gray-900 dark:text-white">${(certificate.name || 'N/A').toUpperCase()}</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">National ID</label>
@@ -661,14 +715,14 @@ function formatDate($date) {
                 <body>
                     <div class="header">
                         <h1>Certificate Details</h1>
-                        <p><strong>Certificate No:</strong> ${certificateToPrint.certificateno} | <strong>Name:</strong> ${certificateToPrint.name} | <strong>Course:</strong> ${certificateToPrint.coursename}</p>
+                        <p><strong>Certificate No:</strong> ${certificateToPrint.certificateno} | <strong>Name:</strong> ${(certificateToPrint.name || '').toUpperCase()} | <strong>Course:</strong> ${certificateToPrint.coursename}</p>
                     </div>
                     
                     <div class="section">
                         <h3>Personal Information</h3>
                         <div class="grid">
                             <div class="field">
-                                <label>Full Name:</label> ${certificateToPrint.name || 'N/A'}
+                                <label>Full Name:</label> ${(certificateToPrint.name || 'N/A').toUpperCase()}
                             </div>
                             <div class="field">
                                 <label>National ID:</label> ${certificateToPrint.nationalid || 'N/A'}

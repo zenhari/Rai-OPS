@@ -760,7 +760,7 @@ function getAbsolutePath($path) {
                 <button id="my-riops-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
                         <i class="fas fa-user-circle mr-3 text-lg"></i>
-                        My RIOPS
+                        My RAIOPS
                     </div>
                     <i id="my-riops-arrow" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
                 </button>

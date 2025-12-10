@@ -61,7 +61,7 @@ $userRole = $_POST['user_role'] ?? 'Training'; // Can be 'Training' or 'Operatio
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nationalid = trim($_POST['nationalid'] ?? '');
     $certificateno = trim($_POST['certificateno'] ?? '');
-    $name = trim($_POST['name'] ?? '');
+    $name = strtoupper(trim($_POST['name'] ?? ''));
     $email = trim($_POST['email'] ?? '');
     $mobile = trim($_POST['mobile'] ?? '');
     $birthday = trim($_POST['birthday'] ?? '');
@@ -573,7 +573,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         </label>
                                         <input type="text" id="name" name="name" required
                                                value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>"
-                                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                               style="text-transform: uppercase;"
+                                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                               oninput="this.value = this.value.toUpperCase();">
                                     </div>
                                     
                                     <div>
@@ -590,7 +592,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             Mobile
                                         </label>
                                         <input type="text" id="mobile" name="mobile"
-                                               value="<?php echo htmlspecialchars($_POST['mobile'] ?? ''); ?>"
+                                               value="<?php 
+                                               $mobileValue = trim($_POST['mobile'] ?? '');
+                                               if (empty($mobileValue)) {
+                                                   $mobileValue = trim($_POST['phone'] ?? '');
+                                               }
+                                               echo htmlspecialchars($mobileValue); 
+                                               ?>"
                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
                                     </div>
                                     
@@ -675,16 +683,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     
                                     <div>
-                                        <label for="certificate_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Certificate Type
-                                        </label>
-                                        <input type="text" id="certificate_type" name="certificate_type"
-                                               value="<?php echo htmlspecialchars($_POST['certificate_type'] ?? ''); ?>"
-                                               placeholder="e.g., Training Certificate"
-                                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
-                                    </div>
-                                    
-                                    <div>
                                         <label for="user_role" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Department
                                         </label>
@@ -764,9 +762,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             if (data.success && data.user) {
                                 const user = data.user;
                                 
-                                // Fill Full Name
+                                // Fill Full Name (convert to uppercase)
                                 if (user.full_name && !nameInput.value) {
-                                    nameInput.value = user.full_name;
+                                    nameInput.value = user.full_name.toUpperCase();
                                 }
                                 
                                 // Fill Email
@@ -774,9 +772,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     emailInput.value = user.email;
                                 }
                                 
-                                // Fill Mobile (use phone if available, otherwise mobile)
-                                if (user.phone_number && !mobileInput.value) {
-                                    mobileInput.value = user.phone_number;
+                                // Fill Mobile (use mobile first, if empty or null use phone)
+                                if (!mobileInput.value) {
+                                    if (user.mobile && user.mobile.trim() !== '') {
+                                        mobileInput.value = user.mobile;
+                                    } else if (user.phone && user.phone.trim() !== '') {
+                                        mobileInput.value = user.phone;
+                                    }
                                 }
                                 
                                 // Fill Birthday

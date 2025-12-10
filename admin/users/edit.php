@@ -665,7 +665,7 @@ if ($user['flight_crew'] == 1) {
                 <?php endif; ?>
 
                 <!-- Edit User Form -->
-                <form method="POST" enctype="multipart/form-data" class="space-y-8">
+                <form method="POST" id="mainUserForm" enctype="multipart/form-data" class="space-y-8">
                     <input type="hidden" name="action" value="update_user">
                     <!-- Personal Information -->
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
@@ -1449,6 +1449,7 @@ if ($user['flight_crew'] == 1) {
                             </div>
                         </div>
                     </div>
+                </form>
 
                     <!-- Endorsement Section (Only for Flight Crew) -->
                     <?php if ($user['flight_crew'] == 1): ?>
@@ -1562,18 +1563,17 @@ if ($user['flight_crew'] == 1) {
                     </div>
                     <?php endif; ?>
 
-                    <!-- Form Actions -->
-                    <div class="flex justify-end space-x-4">
-                        <a href="index.php" 
-                           class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200">
-                            Cancel
-                        </a>
-                        <button type="submit"
-                                class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200">
-                            <i class="fas fa-save mr-2"></i>Update User
-                        </button>
-                    </div>
-                </form>
+                <!-- Form Actions for Main Form -->
+                <div class="flex justify-end space-x-4 mt-6">
+                    <a href="index.php" 
+                       class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200">
+                        Cancel
+                    </a>
+                    <button type="button" onclick="document.getElementById('mainUserForm').submit();"
+                            class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200">
+                        <i class="fas fa-save mr-2"></i>Update User
+                    </button>
+                </div>
 
                 <!-- Password Change Form -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">

@@ -423,6 +423,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_delete_certificate_page':
+            $pagePath = 'admin/users/certificate/delete';
+            $pageName = 'Delete Certificate';
+            $requiredRoles = ['admin'];
+            $description = 'Delete training certificates from the system';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Delete Certificate page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Delete Certificate page permission.';
+                }
+            } else {
+                $message = 'Delete Certificate page permission already exists.';
+            }
+            break;
+
         case 'add_recency_management_page':
             $pagePath = 'admin/recency_management/index.php';
             $pageName = 'Recency Management';
@@ -1936,6 +1953,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addCertificatePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-certificate mr-2"></i>Certificate
                         </button>
+                        <button onclick="addDeleteCertificatePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-trash mr-2"></i>Delete Certificate
+                        </button>
                         <button onclick="addRecencyManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-cog mr-2"></i>Recency Management
                         </button>
@@ -2896,6 +2916,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_certificate_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addDeleteCertificatePage() {
+            if (confirm('Add Delete Certificate page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_delete_certificate_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
