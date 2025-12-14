@@ -73,44 +73,51 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         
         $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
         
+        // Join with stations table to get location_type for both origin and destination
         $query = "SELECT 
-                    id as flight_id,
-                    Route,
-                    off_block,
-                    on_block,
-                    Rego,
-                    adult,
-                    child,
-                    infant,
-                    total_pax,
-                    FltDate,
-                    TaskStart,
-                    TaskEnd,
-                    AircraftID,
-                    CmdPilotID,
-                    FlightNo,
-                    LastName,
-                    FirstName,
-                    FlightHours,
-                    CommandHours,
-                    AllCrew,
-                    ScheduledRoute,
-                    ScheduledTaskType,
-                    ScheduledTaskStatus,
-                    boarding,
-                    gate_closed,
-                    landed,
-                    ready,
-                    start,
-                    takeoff,
-                    taxi,
-                    pcs,
-                    weight,
-                    uplift_fuel,
-                    uplft_lbs
-                  FROM flights 
+                    f.id as flight_id,
+                    f.Route,
+                    f.off_block,
+                    f.on_block,
+                    f.Rego,
+                    f.adult,
+                    f.child,
+                    f.infant,
+                    f.total_pax,
+                    f.FltDate,
+                    f.TaskStart,
+                    f.TaskEnd,
+                    f.AircraftID,
+                    f.CmdPilotID,
+                    f.FlightNo,
+                    f.LastName,
+                    f.FirstName,
+                    f.FlightHours,
+                    f.CommandHours,
+                    f.AllCrew,
+                    f.ScheduledRoute,
+                    f.ScheduledTaskType,
+                    f.ScheduledTaskStatus,
+                    f.boarding,
+                    f.gate_closed,
+                    f.landed,
+                    f.ready,
+                    f.start,
+                    f.takeoff,
+                    f.taxi,
+                    f.pcs,
+                    f.weight,
+                    f.uplift_fuel,
+                    f.uplft_lbs,
+                    SUBSTRING_INDEX(f.Route, '-', 1) as from_code,
+                    SUBSTRING_INDEX(f.Route, '-', -1) as to_code,
+                    s_from.location_type as from_location_type,
+                    s_to.location_type as to_location_type
+                  FROM flights f
+                  LEFT JOIN stations s_from ON s_from.iata_code = SUBSTRING_INDEX(f.Route, '-', 1)
+                  LEFT JOIN stations s_to ON s_to.iata_code = SUBSTRING_INDEX(f.Route, '-', -1)
                   $whereClause
-                  ORDER BY FltDate DESC, TaskStart ASC";
+                  ORDER BY f.FltDate DESC, f.TaskStart ASC";
         
         $stmt = $db->prepare($query);
         $stmt->execute($params);
@@ -120,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         // All flights in flights table are SCHEDULED REVENUE FLIGHTS
         $reportData = [];
         
-        // CAA Standard Metrics
+        // CAA Standard Metrics - Total
         $aircraftKilometres = 0; // مجموع (تعداد پرواز × مسافت)
         $aircraftDepartures = 0; // تعداد برخاست/نشست
         $aircraftHours = 0; // مجموع ساعات block-to-block
@@ -133,6 +140,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $tonneKilometresPerformedFreight = 0; // تن-کیلومتر بار
         $tonneKilometresPerformedMail = 0; // تن-کیلومتر پست
         $tonneKilometresAvailable = 0; // ظرفیت قابل درآمدزایی
+        
+        // CAA Standard Metrics - Domestic (both stations must be Domestic)
+        $aircraftKilometresDomestic = 0;
+        $aircraftDeparturesDomestic = 0;
+        $aircraftHoursDomestic = 0;
+        $passengersCarriedDomestic = 0;
+        $freightTonnesCarriedDomestic = 0;
+        $mailTonnesCarriedDomestic = 0;
+        $passengerKilometresPerformedDomestic = 0;
+        $seatKilometresAvailableDomestic = 0;
+        $tonneKilometresPerformedPassengersDomestic = 0;
+        $tonneKilometresPerformedFreightDomestic = 0;
+        $tonneKilometresPerformedMailDomestic = 0;
+        $tonneKilometresAvailableDomestic = 0;
+        
+        // CAA Standard Metrics - International (at least one station is International)
+        $aircraftKilometresInternational = 0;
+        $aircraftDeparturesInternational = 0;
+        $aircraftHoursInternational = 0;
+        $passengersCarriedInternational = 0;
+        $freightTonnesCarriedInternational = 0;
+        $mailTonnesCarriedInternational = 0;
+        $passengerKilometresPerformedInternational = 0;
+        $seatKilometresAvailableInternational = 0;
+        $tonneKilometresPerformedPassengersInternational = 0;
+        $tonneKilometresPerformedFreightInternational = 0;
+        $tonneKilometresPerformedMailInternational = 0;
+        $tonneKilometresAvailableInternational = 0;
         
         // Constants for calculations
         $averagePassengerWeight = 80; // وزن متوسط هر مسافر (کیلوگرم)
@@ -357,6 +392,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 continue;
             }
             
+            // Check location types from query result
+            $fromLocationType = $flight['from_location_type'] ?? null;
+            $toLocationType = $flight['to_location_type'] ?? null;
+            
+            // Determine if flight is Domestic (both stations must be Domestic)
+            $isDomestic = ($fromLocationType === 'Domestic' && $toLocationType === 'Domestic');
+            
+            // Determine if flight is International (at least one station is International)
+            $isInternational = ($fromLocationType === 'International' || $toLocationType === 'International');
+            
             // Get aircraft capacity based on registration (CASE Rego logic)
             $aircraftRego = $flight['Rego'] ?? '';
             $aircraftCapacity = $aircraftCapacities[$aircraftRego] ?? $aircraftCapacities['default'];
@@ -434,6 +479,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $totalCapacityTonnes = $totalCapacityKg / 1000;
             $availableTonKm = $totalCapacityTonnes * $distanceKm;
             $tonneKilometresAvailable += $availableTonKm;
+            
+            // Add to Domestic metrics if both stations are Domestic
+            if ($isDomestic) {
+                $aircraftKilometresDomestic += $distanceKm;
+                $aircraftDeparturesDomestic += 1;
+                $aircraftHoursDomestic += $flightHours;
+                $passengersCarriedDomestic += $totalPax;
+                $freightTonnesCarriedDomestic += $freightTonnes;
+                $mailTonnesCarriedDomestic += $mailTonnes;
+                $passengerKilometresPerformedDomestic += $passengerKm;
+                $seatKilometresAvailableDomestic += $seatKm;
+                $tonneKilometresPerformedPassengersDomestic += $passengerTonKm;
+                $tonneKilometresPerformedFreightDomestic += $freightTonKm;
+                $tonneKilometresPerformedMailDomestic += $mailTonKm;
+                $tonneKilometresAvailableDomestic += $availableTonKm;
+            }
+            
+            // Add to International metrics if at least one station is International
+            if ($isInternational) {
+                $aircraftKilometresInternational += $distanceKm;
+                $aircraftDeparturesInternational += 1;
+                $aircraftHoursInternational += $flightHours;
+                $passengersCarriedInternational += $totalPax;
+                $freightTonnesCarriedInternational += $freightTonnes;
+                $mailTonnesCarriedInternational += $mailTonnes;
+                $passengerKilometresPerformedInternational += $passengerKm;
+                $seatKilometresAvailableInternational += $seatKm;
+                $tonneKilometresPerformedPassengersInternational += $passengerTonKm;
+                $tonneKilometresPerformedFreightInternational += $freightTonKm;
+                $tonneKilometresPerformedMailInternational += $mailTonKm;
+                $tonneKilometresAvailableInternational += $availableTonKm;
+            }
             
             // Legacy variables for backward compatibility
             $cargoWeight = $freightWeightKg;
@@ -518,12 +595,109 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $passengerLoadFactor = $seatKilometresAvailable > 0 ? ($passengerKilometresPerformed / $seatKilometresAvailable) * 100 : 0;
         $weightLoadFactor = $tonneKilometresAvailable > 0 ? (($tonneKilometresPerformedPassengers + $tonneKilometresPerformedFreight + $tonneKilometresPerformedMail) / $tonneKilometresAvailable) * 100 : 0;
         
+        // Domestic Load Factors
+        $passengerLoadFactorDomestic = $seatKilometresAvailableDomestic > 0 ? ($passengerKilometresPerformedDomestic / $seatKilometresAvailableDomestic) * 100 : 0;
+        $weightLoadFactorDomestic = $tonneKilometresAvailableDomestic > 0 ? (($tonneKilometresPerformedPassengersDomestic + $tonneKilometresPerformedFreightDomestic + $tonneKilometresPerformedMailDomestic) / $tonneKilometresAvailableDomestic) * 100 : 0;
+        
+        // International Load Factors
+        $passengerLoadFactorInternational = $seatKilometresAvailableInternational > 0 ? ($passengerKilometresPerformedInternational / $seatKilometresAvailableInternational) * 100 : 0;
+        $weightLoadFactorInternational = $tonneKilometresAvailableInternational > 0 ? (($tonneKilometresPerformedPassengersInternational + $tonneKilometresPerformedFreightInternational + $tonneKilometresPerformedMailInternational) / $tonneKilometresAvailableInternational) * 100 : 0;
+        
         // Legacy load factor for backward compatibility
         $cargoLoadFactor = $totalOfferedTonKm > 0 ? ($totalCargoTonKm / $totalOfferedTonKm) * 100 : 0;
+        
+        // Prepare detailed calculation data for each metric
+        $calculationDetails = [
+            'aircraft_kilometres' => array_column($reportData, 'distance_km'),
+            'aircraft_departures' => array_fill(0, count($reportData), 1), // Each flight = 1 departure
+            'aircraft_hours' => array_column($reportData, 'flight_hours'),
+            'passengers_carried' => array_column($reportData, 'total_pax'),
+            'freight_tonnes_carried' => array_map(function($row) {
+                return floatval($row['cargo_weight'] ?? 0) / 1000;
+            }, $reportData),
+            'mail_tonnes_carried' => array_fill(0, count($reportData), 0), // Currently 0
+            'passenger_kilometres_performed' => array_column($reportData, 'passenger_km'),
+            'seat_kilometres_available' => array_column($reportData, 'seat_km'),
+            'tonne_kilometres_performed_passengers' => array_map(function($row) {
+                $totalPax = intval($row['total_pax'] ?? 0);
+                $distanceKm = floatval($row['distance_km'] ?? 0);
+                $passengerWeightKg = ($totalPax * 80) + ($totalPax * 20); // 80kg passenger + 20kg baggage
+                return ($passengerWeightKg / 1000) * $distanceKm;
+            }, $reportData),
+            'tonne_kilometres_performed_freight' => array_column($reportData, 'cargo_ton_km'),
+            'tonne_kilometres_performed_mail' => array_fill(0, count($reportData), 0), // Currently 0
+            'tonne_kilometres_available' => array_column($reportData, 'offered_ton_km')
+        ];
+        
+        // Calculation methods for auditor
+        $calculationMethods = [
+            'aircraft_kilometres' => [
+                'en' => 'Sum of (distance in km) for each flight. Formula: Σ(distance_km) for all flights in date range.',
+                'fa' => 'مجموع مسافت (کیلومتر) برای هر پرواز. فرمول: Σ(مسافت_کیلومتر) برای تمام پروازهای بازه انتخابی.'
+            ],
+            'aircraft_departures' => [
+                'en' => 'Count of all flights (each flight = 1 departure). Formula: COUNT(flights) where FltDate is within date range.',
+                'fa' => 'تعداد کل پروازها (هر پرواز = 1 برخاست). فرمول: COUNT(پروازها) که FltDate در بازه انتخابی باشد.'
+            ],
+            'aircraft_hours' => [
+                'en' => 'Sum of block-to-block flight hours. Calculated from TaskStart and TaskEnd (or off_block/on_block). Formula: Σ(flight_hours) for all flights.',
+                'fa' => 'مجموع ساعات پرواز block-to-block. محاسبه از TaskStart و TaskEnd (یا off_block/on_block). فرمول: Σ(ساعات_پرواز) برای تمام پروازها.'
+            ],
+            'passengers_carried' => [
+                'en' => 'Sum of total passengers (adult + child + infant) for all flights. Formula: Σ(total_pax) for all flights.',
+                'fa' => 'مجموع کل مسافران (بزرگسال + کودک + نوزاد) برای تمام پروازها. فرمول: Σ(total_pax) برای تمام پروازها.'
+            ],
+            'freight_tonnes_carried' => [
+                'en' => 'Sum of freight weight converted from kg to tonnes. Formula: Σ(weight_kg / 1000) for all flights.',
+                'fa' => 'مجموع وزن بار کارگو تبدیل شده از کیلوگرم به تن. فرمول: Σ(weight_kg / 1000) برای تمام پروازها.'
+            ],
+            'mail_tonnes_carried' => [
+                'en' => 'Sum of mail weight (currently 0 as no mail field exists). Formula: Σ(mail_weight_kg / 1000) = 0.',
+                'fa' => 'مجموع وزن پست (در حال حاضر 0 چون فیلد پست وجود ندارد). فرمول: Σ(mail_weight_kg / 1000) = 0.'
+            ],
+            'passenger_kilometres_performed' => [
+                'en' => 'Sum of (passengers × distance) for each flight. Formula: Σ(total_pax × distance_km) for all flights.',
+                'fa' => 'مجموع (مسافران × مسافت) برای هر پرواز. فرمول: Σ(total_pax × مسافت_کیلومتر) برای تمام پروازها.'
+            ],
+            'seat_kilometres_available' => [
+                'en' => 'Sum of (seats × distance) for each flight. Seats based on aircraft registration: EP-NEB=45, EP-NEA=30, EP-NEC=45, default=30. Formula: Σ(seats × distance_km) for all flights.',
+                'fa' => 'مجموع (صندلی‌ها × مسافت) برای هر پرواز. صندلی‌ها بر اساس ثبت هواپیما: EP-NEB=45، EP-NEA=30، EP-NEC=45، پیش‌فرض=30. فرمول: Σ(صندلی‌ها × مسافت_کیلومتر) برای تمام پروازها.'
+            ],
+            'passenger_load_factor' => [
+                'en' => 'Percentage of seat capacity utilized. Formula: (passenger_kilometres_performed / seat_kilometres_available) × 100.',
+                'fa' => 'درصد استفاده از ظرفیت صندلی. فرمول: (مسافر_کیلومتر_انجام_شده / صندلی_کیلومتر_در_دسترس) × 100.'
+            ],
+            'tonne_kilometres_performed_passengers' => [
+                'en' => 'Sum of (passenger weight in tonnes × distance) for each flight. Passenger weight = (total_pax × 80kg) + (total_pax × 20kg baggage). Formula: Σ(((total_pax × 100kg) / 1000) × distance_km) for all flights.',
+                'fa' => 'مجموع (وزن مسافران به تن × مسافت) برای هر پرواز. وزن مسافر = (total_pax × 80kg) + (total_pax × 20kg بار). فرمول: Σ(((total_pax × 100kg) / 1000) × مسافت_کیلومتر) برای تمام پروازها.'
+            ],
+            'tonne_kilometres_performed_freight' => [
+                'en' => 'Sum of (freight tonnes × distance) for each flight. Formula: Σ(freight_tonnes × distance_km) for all flights.',
+                'fa' => 'مجموع (تن بار × مسافت) برای هر پرواز. فرمول: Σ(تن_بار × مسافت_کیلومتر) برای تمام پروازها.'
+            ],
+            'tonne_kilometres_performed_mail' => [
+                'en' => 'Sum of (mail tonnes × distance) for each flight (currently 0). Formula: Σ(mail_tonnes × distance_km) = 0.',
+                'fa' => 'مجموع (تن پست × مسافت) برای هر پرواز (در حال حاضر 0). فرمول: Σ(تن_پست × مسافت_کیلومتر) = 0.'
+            ],
+            'tonne_kilometres_performed_total' => [
+                'en' => 'Sum of all tonne-kilometres performed (passengers + freight + mail). Formula: tonne_km_passengers + tonne_km_freight + tonne_km_mail.',
+                'fa' => 'مجموع تمام تن-کیلومتر انجام شده (مسافران + بار + پست). فرمول: تن_کیلومتر_مسافران + تن_کیلومتر_بار + تن_کیلومتر_پست.'
+            ],
+            'tonne_kilometres_available' => [
+                'en' => 'Sum of (total capacity in tonnes × distance) for each flight. Total capacity = (seats × 100kg passenger+baggage) + cargo_capacity. Formula: Σ(((seats × 100kg + cargo_capacity_kg) / 1000) × distance_km) for all flights.',
+                'fa' => 'مجموع (ظرفیت کل به تن × مسافت) برای هر پرواز. ظرفیت کل = (صندلی‌ها × 100kg مسافر+بار) + ظرفیت_بار. فرمول: Σ(((صندلی‌ها × 100kg + ظرفیت_بار_کیلوگرم) / 1000) × مسافت_کیلومتر) برای تمام پروازها.'
+            ],
+            'weight_load_factor' => [
+                'en' => 'Percentage of weight capacity utilized. Formula: (tonne_km_performed_total / tonne_km_available) × 100.',
+                'fa' => 'درصد استفاده از ظرفیت وزنی. فرمول: (تن_کیلومتر_انجام_شده_کل / تن_کیلومتر_در_دسترس) × 100.'
+            ]
+        ];
         
         echo json_encode([
             'success' => true,
             'data' => $reportData,
+            'calculation_methods' => $calculationMethods,
+            'calculation_details' => $calculationDetails,
             'summary' => [
                 // CAA Standard Metrics
                 'aircraft_kilometres' => $aircraftKilometres,
@@ -541,6 +715,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 'tonne_kilometres_performed_total' => $tonneKilometresPerformedPassengers + $tonneKilometresPerformedFreight + $tonneKilometresPerformedMail,
                 'tonne_kilometres_available' => $tonneKilometresAvailable,
                 'weight_load_factor' => $weightLoadFactor,
+                
+                // Domestic Metrics (both stations must be Domestic)
+                'aircraft_kilometres_domestic' => $aircraftKilometresDomestic,
+                'aircraft_departures_domestic' => $aircraftDeparturesDomestic,
+                'aircraft_hours_domestic' => $aircraftHoursDomestic,
+                'passengers_carried_domestic' => $passengersCarriedDomestic,
+                'freight_tonnes_carried_domestic' => $freightTonnesCarriedDomestic,
+                'mail_tonnes_carried_domestic' => $mailTonnesCarriedDomestic,
+                'passenger_kilometres_performed_domestic' => $passengerKilometresPerformedDomestic,
+                'seat_kilometres_available_domestic' => $seatKilometresAvailableDomestic,
+                'passenger_load_factor_domestic' => $passengerLoadFactorDomestic,
+                'tonne_kilometres_performed_passengers_domestic' => $tonneKilometresPerformedPassengersDomestic,
+                'tonne_kilometres_performed_freight_domestic' => $tonneKilometresPerformedFreightDomestic,
+                'tonne_kilometres_performed_mail_domestic' => $tonneKilometresPerformedMailDomestic,
+                'tonne_kilometres_performed_total_domestic' => $tonneKilometresPerformedPassengersDomestic + $tonneKilometresPerformedFreightDomestic + $tonneKilometresPerformedMailDomestic,
+                'tonne_kilometres_available_domestic' => $tonneKilometresAvailableDomestic,
+                'weight_load_factor_domestic' => $weightLoadFactorDomestic,
+                
+                // International Metrics (at least one station is International)
+                'aircraft_kilometres_international' => $aircraftKilometresInternational,
+                'aircraft_departures_international' => $aircraftDeparturesInternational,
+                'aircraft_hours_international' => $aircraftHoursInternational,
+                'passengers_carried_international' => $passengersCarriedInternational,
+                'freight_tonnes_carried_international' => $freightTonnesCarriedInternational,
+                'mail_tonnes_carried_international' => $mailTonnesCarriedInternational,
+                'passenger_kilometres_performed_international' => $passengerKilometresPerformedInternational,
+                'seat_kilometres_available_international' => $seatKilometresAvailableInternational,
+                'passenger_load_factor_international' => $passengerLoadFactorInternational,
+                'tonne_kilometres_performed_passengers_international' => $tonneKilometresPerformedPassengersInternational,
+                'tonne_kilometres_performed_freight_international' => $tonneKilometresPerformedFreightInternational,
+                'tonne_kilometres_performed_mail_international' => $tonneKilometresPerformedMailInternational,
+                'tonne_kilometres_performed_total_international' => $tonneKilometresPerformedPassengersInternational + $tonneKilometresPerformedFreightInternational + $tonneKilometresPerformedMailInternational,
+                'tonne_kilometres_available_international' => $tonneKilometresAvailableInternational,
+                'weight_load_factor_international' => $weightLoadFactorInternational,
                 
                 // Legacy metrics for backward compatibility
                 'total_flights' => $totalFlights,
@@ -684,7 +892,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                                 <span data-en="Metric" data-fa="معیار">Metric</span>
                                             </th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-r border-gray-200 dark:border-gray-600">
-                                                <span data-en="Value" data-fa="مقدار">Value</span>
+                                                <span data-en="Domestic Value" data-fa="مقدار داخلی">Domestic Value</span>
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-r border-gray-200 dark:border-gray-600">
+                                                <span data-en="International Value" data-fa="مقدار بین‌المللی">International Value</span>
                                             </th>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                                 <span data-en="Unit" data-fa="واحد">Unit</span>
@@ -695,6 +906,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                         <!-- Statistics will be populated here -->
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculation Methods Box -->
+                    <div id="calculationMethodsBox" class="hidden p-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                                    <span data-en="Calculation Methods" data-fa="روش محاسبه">Calculation Methods</span>
+                                </h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    <span data-en="Detailed explanation of how each metric is calculated based on the selected date range" data-fa="توضیحات دقیق نحوه محاسبه هر معیار بر اساس بازه انتخابی">Detailed explanation of how each metric is calculated based on the selected date range</span>
+                                </p>
+                            </div>
+                            <div class="p-6">
+                                <div id="calculationMethodsContent" class="space-y-4">
+                                    <!-- Calculation methods will be populated here -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -814,6 +1044,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             if (currentData.length > 0 && window.lastSummary) {
                 displaySummary(window.lastSummary);
             }
+            
+            // Refresh calculation methods if available
+            if (window.calculationMethods && window.calculationDetails && window.lastSummary) {
+                displayCalculationMethods(window.calculationMethods, window.calculationDetails, window.lastSummary, currentData);
+            }
         }
 
         function loadFlightData() {
@@ -868,8 +1103,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     if (data.success) {
                         currentData = data.data;
                         window.lastSummary = data.summary; // Store summary for language switching
+                        window.calculationMethods = data.calculation_methods || {}; // Store calculation methods
+                        window.calculationDetails = data.calculation_details || {}; // Store calculation details
                         displayData(data.data);
                         displaySummary(data.summary);
+                        displayCalculationMethods(data.calculation_methods || {}, data.calculation_details || {}, data.summary || {}, data.data || []);
                         document.getElementById('downloadBtn').disabled = false;
                         document.getElementById('downloadWordBtn').disabled = false;
                     } else {
@@ -1042,12 +1280,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
             ];
             
+            // Helper function to format values for Domestic and International
+            function formatDomesticValue(key, summary) {
+                const domesticKey = key + '_domestic';
+                const value = summary[domesticKey] || 0;
+                
+                if (key === 'aircraft_hours') {
+                    const hours = Math.floor(value);
+                    const minutes = Math.round((value - hours) * 60);
+                    return `${hours}h ${minutes}m`;
+                } else if (key === 'aircraft_kilometres' || key === 'passenger_kilometres_performed' || key === 'seat_kilometres_available' || 
+                           key.startsWith('tonne_kilometres')) {
+                    return (value / 1000).toFixed(2);
+                } else if (key.includes('load_factor')) {
+                    return value.toFixed(2);
+                } else if (key.includes('tonnes')) {
+                    return value.toFixed(2);
+                } else {
+                    return Math.round(value).toLocaleString();
+                }
+            }
+            
+            function formatInternationalValue(key, summary) {
+                const internationalKey = key + '_international';
+                const value = summary[internationalKey] || 0;
+                
+                if (key === 'aircraft_hours') {
+                    const hours = Math.floor(value);
+                    const minutes = Math.round((value - hours) * 60);
+                    return `${hours}h ${minutes}m`;
+                } else if (key === 'aircraft_kilometres' || key === 'passenger_kilometres_performed' || key === 'seat_kilometres_available' || 
+                           key.startsWith('tonne_kilometres')) {
+                    return (value / 1000).toFixed(2);
+                } else if (key.includes('load_factor')) {
+                    return value.toFixed(2);
+                } else if (key.includes('tonnes')) {
+                    return value.toFixed(2);
+                } else {
+                    return Math.round(value).toLocaleString();
+                }
+            }
+            
             statistics.forEach(section => {
                 // Add section header
                 const sectionTr = document.createElement('tr');
                 sectionTr.className = 'bg-blue-50 dark:bg-blue-900/20';
                 sectionTr.innerHTML = `
-                    <td colspan="3" class="px-6 py-3 text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
+                    <td colspan="4" class="px-6 py-3 text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
                         ${section.section}
                     </td>
                 `;
@@ -1055,24 +1334,340 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 
                 // Add metrics
                 section.metrics.forEach(stat => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
-                        ${stat.metric}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
-                        ${stat.value}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        ${stat.unit}
-                    </td>
-                `;
-                statisticsBody.appendChild(tr);
+                    // Map metric keys to summary keys
+                    const metricKeyMap = {
+                        'Aircraft kilometres': 'aircraft_kilometres',
+                        'Aircraft departures': 'aircraft_departures',
+                        'Aircraft hours': 'aircraft_hours',
+                        'Passengers carried': 'passengers_carried',
+                        'Freight tonnes carried': 'freight_tonnes_carried',
+                        'Mail tonnes carried': 'mail_tonnes_carried',
+                        'Passenger-kilometres performed': 'passenger_kilometres_performed',
+                        'Seat-kilometres available': 'seat_kilometres_available',
+                        'Passenger load factor': 'passenger_load_factor',
+                        'Tonne-kilometres performed (passengers incl. baggage)': 'tonne_kilometres_performed_passengers',
+                        'Tonne-kilometres performed (freight)': 'tonne_kilometres_performed_freight',
+                        'Tonne-kilometres performed (mail)': 'tonne_kilometres_performed_mail',
+                        'Tonne-kilometres performed (total)': 'tonne_kilometres_performed_total',
+                        'Tonne-kilometres available': 'tonne_kilometres_available',
+                        'Weight load factor': 'weight_load_factor'
+                    };
+                    
+                    const persianKeyMap = {
+                        'کیلومتر هواپیما': 'aircraft_kilometres',
+                        'تعداد برخاست': 'aircraft_departures',
+                        'ساعات هواپیما': 'aircraft_hours',
+                        'مسافران حمل‌شده': 'passengers_carried',
+                        'تناژ بار حمل‌شده': 'freight_tonnes_carried',
+                        'تناژ پست حمل‌شده': 'mail_tonnes_carried',
+                        'مسافر-کیلومتر انجام‌شده': 'passenger_kilometres_performed',
+                        'صندلی-کیلومتر در دسترس': 'seat_kilometres_available',
+                        'ضریب ظرفیت مسافر': 'passenger_load_factor',
+                        'تن-کیلومتر انجام‌شده (مسافران شامل بار)': 'tonne_kilometres_performed_passengers',
+                        'تن-کیلومتر انجام‌شده (بار)': 'tonne_kilometres_performed_freight',
+                        'تن-کیلومتر انجام‌شده (پست)': 'tonne_kilometres_performed_mail',
+                        'تن-کیلومتر انجام‌شده (کل)': 'tonne_kilometres_performed_total',
+                        'تن-کیلومتر در دسترس': 'tonne_kilometres_available',
+                        'ضریب ظرفیت وزنی': 'weight_load_factor'
+                    };
+                    
+                    const summaryKey = metricKeyMap[stat.metric] || persianKeyMap[stat.metric] || '';
+                    const domesticValue = summaryKey ? formatDomesticValue(summaryKey, summary) : '-';
+                    const internationalValue = summaryKey ? formatInternationalValue(summaryKey, summary) : '-';
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
+                            ${stat.metric}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
+                            ${domesticValue}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
+                            ${internationalValue}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            ${stat.unit}
+                        </td>
+                    `;
+                    statisticsBody.appendChild(tr);
                 });
             });
             
             document.getElementById('summaryCards').classList.remove('hidden');
+        }
+
+        function displayCalculationMethods(methods, details, summary, flightData = []) {
+            const contentDiv = document.getElementById('calculationMethodsContent');
+            contentDiv.innerHTML = '';
+            
+            if (!methods || Object.keys(methods).length === 0) {
+                contentDiv.innerHTML = '<p class="text-gray-600 dark:text-gray-400">' + 
+                    (currentLanguage === 'en' ? 'No calculation methods available.' : 'روش محاسبه در دسترس نیست.') + 
+                    '</p>';
+                document.getElementById('calculationMethodsBox').classList.remove('hidden');
+                return;
+            }
+            
+            // Map metric keys to display names and summary keys
+            const metricInfo = {
+                'aircraft_kilometres': {
+                    name: currentLanguage === 'en' ? 'Aircraft kilometres' : 'کیلومتر هواپیما',
+                    summaryKey: 'aircraft_kilometres',
+                    unit: 'km',
+                    formatValue: (val) => val.toFixed(2)
+                },
+                'aircraft_departures': {
+                    name: currentLanguage === 'en' ? 'Aircraft departures' : 'تعداد برخاست',
+                    summaryKey: 'aircraft_departures',
+                    unit: '',
+                    formatValue: (val) => Math.round(val).toLocaleString()
+                },
+                'aircraft_hours': {
+                    name: currentLanguage === 'en' ? 'Aircraft hours' : 'ساعات هواپیما',
+                    summaryKey: 'aircraft_hours',
+                    unit: 'hours',
+                    formatValue: (val) => {
+                        const hours = Math.floor(val);
+                        const minutes = Math.round((val - hours) * 60);
+                        return `${hours}h ${minutes}m`;
+                    }
+                },
+                'passengers_carried': {
+                    name: currentLanguage === 'en' ? 'Passengers carried' : 'مسافران حمل‌شده',
+                    summaryKey: 'passengers_carried',
+                    unit: '',
+                    formatValue: (val) => Math.round(val).toLocaleString()
+                },
+                'freight_tonnes_carried': {
+                    name: currentLanguage === 'en' ? 'Freight tonnes carried' : 'تناژ بار حمل‌شده',
+                    summaryKey: 'freight_tonnes_carried',
+                    unit: 'tonnes',
+                    formatValue: (val) => val.toFixed(2)
+                },
+                'mail_tonnes_carried': {
+                    name: currentLanguage === 'en' ? 'Mail tonnes carried' : 'تناژ پست حمل‌شده',
+                    summaryKey: 'mail_tonnes_carried',
+                    unit: 'tonnes',
+                    formatValue: (val) => val.toFixed(2)
+                },
+                'passenger_kilometres_performed': {
+                    name: currentLanguage === 'en' ? 'Passenger-kilometres performed' : 'مسافر-کیلومتر انجام‌شده',
+                    summaryKey: 'passenger_kilometres_performed',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'seat_kilometres_available': {
+                    name: currentLanguage === 'en' ? 'Seat-kilometres available' : 'صندلی-کیلومتر در دسترس',
+                    summaryKey: 'seat_kilometres_available',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'passenger_load_factor': {
+                    name: currentLanguage === 'en' ? 'Passenger load factor' : 'ضریب ظرفیت مسافر',
+                    summaryKey: 'passenger_load_factor',
+                    unit: '%',
+                    formatValue: (val) => val.toFixed(2)
+                },
+                'tonne_kilometres_performed_passengers': {
+                    name: currentLanguage === 'en' ? 'Tonne-kilometres performed (passengers incl. baggage)' : 'تن-کیلومتر انجام‌شده (مسافران شامل بار)',
+                    summaryKey: 'tonne_kilometres_performed_passengers',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'tonne_kilometres_performed_freight': {
+                    name: currentLanguage === 'en' ? 'Tonne-kilometres performed (freight)' : 'تن-کیلومتر انجام‌شده (بار)',
+                    summaryKey: 'tonne_kilometres_performed_freight',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'tonne_kilometres_performed_mail': {
+                    name: currentLanguage === 'en' ? 'Tonne-kilometres performed (mail)' : 'تن-کیلومتر انجام‌شده (پست)',
+                    summaryKey: 'tonne_kilometres_performed_mail',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'tonne_kilometres_performed_total': {
+                    name: currentLanguage === 'en' ? 'Tonne-kilometres performed (total)' : 'تن-کیلومتر انجام‌شده (کل)',
+                    summaryKey: 'tonne_kilometres_performed_total',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'tonne_kilometres_available': {
+                    name: currentLanguage === 'en' ? 'Tonne-kilometres available' : 'تن-کیلومتر در دسترس',
+                    summaryKey: 'tonne_kilometres_available',
+                    unit: '',
+                    formatValue: (val) => (val / 1000).toFixed(2) + ' ×1000'
+                },
+                'weight_load_factor': {
+                    name: currentLanguage === 'en' ? 'Weight load factor' : 'ضریب ظرفیت وزنی',
+                    summaryKey: 'weight_load_factor',
+                    unit: '%',
+                    formatValue: (val) => val.toFixed(2)
+                }
+            };
+            
+            // Helper function to format calculation with actual numbers
+            function formatCalculation(key, values, summary, flightDataParam) {
+                const flightDataToUse = flightDataParam || flightData || [];
+                if (!values || values.length === 0) {
+                    return '';
+                }
+                
+                const info = metricInfo[key];
+                if (!info) return '';
+                
+                // For load factors, show the formula with actual values
+                if (key === 'passenger_load_factor') {
+                    const passengerKm = summary.passenger_kilometres_performed || 0;
+                    const seatKm = summary.seat_kilometres_available || 0;
+                    const result = summary.passenger_load_factor || 0;
+                    return `${(passengerKm / 1000).toFixed(2)} / ${(seatKm / 1000).toFixed(2)} × 100 = ${result.toFixed(2)}%`;
+                }
+                
+                if (key === 'weight_load_factor') {
+                    const performed = (summary.tonne_kilometres_performed_passengers || 0) + 
+                                     (summary.tonne_kilometres_performed_freight || 0) + 
+                                     (summary.tonne_kilometres_performed_mail || 0);
+                    const available = summary.tonne_kilometres_available || 0;
+                    const result = summary.weight_load_factor || 0;
+                    return `${(performed / 1000).toFixed(2)} / ${(available / 1000).toFixed(2)} × 100 = ${result.toFixed(2)}%`;
+                }
+                
+                if (key === 'tonne_kilometres_performed_total') {
+                    const passengers = summary.tonne_kilometres_performed_passengers || 0;
+                    const freight = summary.tonne_kilometres_performed_freight || 0;
+                    const mail = summary.tonne_kilometres_performed_mail || 0;
+                    const total = passengers + freight + mail;
+                    return `${(passengers / 1000).toFixed(2)} + ${(freight / 1000).toFixed(2)} + ${(mail / 1000).toFixed(2)} = ${(total / 1000).toFixed(2)} ×1000`;
+                }
+                
+                // For other metrics, show sum of values
+                const sum = values.reduce((a, b) => a + (b || 0), 0);
+                const formattedSum = info.formatValue(sum);
+                
+                // Special formatting for passenger_kilometres_performed
+                if (key === 'passenger_kilometres_performed' && flightDataToUse && flightDataToUse.length > 0) {
+                    const firstFew = flightDataToUse.slice(0, Math.min(5, flightDataToUse.length));
+                    const parts = firstFew.map(row => {
+                        const pax = row.total_pax || 0;
+                        const dist = row.distance_km || 0;
+                        return `(${pax} × ${dist.toFixed(2)})`;
+                    });
+                    const remaining = flightDataToUse.length > 5 ? ` + ... (${flightDataToUse.length - 5} ${currentLanguage === 'en' ? 'more flights' : 'پرواز دیگر'})` : '';
+                    return `${parts.join(' + ')}${remaining} = ${formattedSum}${info.unit ? ' ' + info.unit : ''}`;
+                }
+                
+                // Special formatting for seat_kilometres_available
+                if (key === 'seat_kilometres_available' && flightDataToUse && flightDataToUse.length > 0) {
+                    const firstFew = flightDataToUse.slice(0, Math.min(5, flightDataToUse.length));
+                    const parts = firstFew.map(row => {
+                        const seats = row.seats_offered || 0;
+                        const dist = row.distance_km || 0;
+                        return `(${seats} × ${dist.toFixed(2)})`;
+                    });
+                    const remaining = flightDataToUse.length > 5 ? ` + ... (${flightDataToUse.length - 5} ${currentLanguage === 'en' ? 'more flights' : 'پرواز دیگر'})` : '';
+                    return `${parts.join(' + ')}${remaining} = ${formattedSum}${info.unit ? ' ' + info.unit : ''}`;
+                }
+                
+                // Special formatting for tonne_kilometres_performed_passengers
+                if (key === 'tonne_kilometres_performed_passengers' && flightDataToUse && flightDataToUse.length > 0) {
+                    const firstFew = flightDataToUse.slice(0, Math.min(5, flightDataToUse.length));
+                    const parts = firstFew.map(row => {
+                        const pax = row.total_pax || 0;
+                        const dist = row.distance_km || 0;
+                        const weightKg = (pax * 100); // 80kg passenger + 20kg baggage
+                        const weightTon = weightKg / 1000;
+                        return `(${weightTon.toFixed(2)} × ${dist.toFixed(2)})`;
+                    });
+                    const remaining = flightDataToUse.length > 5 ? ` + ... (${flightDataToUse.length - 5} ${currentLanguage === 'en' ? 'more flights' : 'پرواز دیگر'})` : '';
+                    return `${parts.join(' + ')}${remaining} = ${formattedSum}${info.unit ? ' ' + info.unit : ''}`;
+                }
+                
+                // Special formatting for tonne_kilometres_performed_freight
+                if (key === 'tonne_kilometres_performed_freight' && flightDataToUse && flightDataToUse.length > 0) {
+                    const firstFew = flightDataToUse.slice(0, Math.min(5, flightDataToUse.length));
+                    const parts = firstFew.map(row => {
+                        const freightKg = row.cargo_weight || 0;
+                        const freightTon = freightKg / 1000;
+                        const dist = row.distance_km || 0;
+                        return `(${freightTon.toFixed(2)} × ${dist.toFixed(2)})`;
+                    });
+                    const remaining = flightDataToUse.length > 5 ? ` + ... (${flightDataToUse.length - 5} ${currentLanguage === 'en' ? 'more flights' : 'پرواز دیگر'})` : '';
+                    return `${parts.join(' + ')}${remaining} = ${formattedSum}${info.unit ? ' ' + info.unit : ''}`;
+                }
+                
+                // Show first few values if not too many
+                if (values.length <= 10) {
+                    const formattedValues = values.map(v => {
+                        const val = v || 0;
+                        if (key === 'aircraft_kilometres' || key === 'aircraft_hours' || key === 'passengers_carried') {
+                            return val.toFixed(2);
+                        }
+                        return info.formatValue(val);
+                    }).join(' + ');
+                    return `${formattedValues} = ${formattedSum}${info.unit ? ' ' + info.unit : ''}`;
+                } else {
+                    // Show first 5, then "...", then last 2
+                    const first5 = values.slice(0, 5).map(v => {
+                        const val = v || 0;
+                        if (key === 'aircraft_kilometres' || key === 'aircraft_hours' || key === 'passengers_carried') {
+                            return val.toFixed(2);
+                        }
+                        return info.formatValue(val);
+                    }).join(' + ');
+                    const last2 = values.slice(-2).map(v => {
+                        const val = v || 0;
+                        if (key === 'aircraft_kilometres' || key === 'aircraft_hours' || key === 'passengers_carried') {
+                            return val.toFixed(2);
+                        }
+                        return info.formatValue(val);
+                    }).join(' + ');
+                    return `${first5} + ... + ${last2} = ${formattedSum}${info.unit ? ' ' + info.unit : ''} (${values.length} ${currentLanguage === 'en' ? 'flights' : 'پرواز'})`;
+                }
+            }
+            
+            // Create cards for each calculation method
+            Object.keys(methods).forEach(key => {
+                const method = methods[key];
+                const methodText = method[currentLanguage] || method['en'] || '';
+                const info = metricInfo[key];
+                const metricName = info ? info.name : key;
+                const detailValues = details[key] || [];
+                const calculationFormula = formatCalculation(key, detailValues, summary, flightData);
+                
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 mb-4';
+                cardDiv.innerHTML = `
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-calculator text-blue-600 dark:text-blue-400 mt-1"></i>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                ${metricName}
+                            </h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-2">
+                                ${methodText}
+                            </p>
+                            ${calculationFormula ? `
+                                <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                                    <div class="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">
+                                        ${currentLanguage === 'en' ? 'Actual Calculation:' : 'محاسبه واقعی:'}
+                                    </div>
+                                    <div class="text-sm font-mono text-blue-900 dark:text-blue-200">
+                                        ${calculationFormula}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                contentDiv.appendChild(cardDiv);
+            });
+            
+            document.getElementById('calculationMethodsBox').classList.remove('hidden');
         }
 
         function showError(message) {
@@ -1081,51 +1676,81 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
 
         function downloadExcel() {
-            if (currentData.length === 0) {
+            if (!window.lastSummary) {
                 alert(currentLanguage === 'en' ? 'No data to download. Please load flight data first.' : 'هیچ داده ای برای دانلود موجود نیست. لطفاً ابتدا داده های پرواز را بارگذاری کنید.');
                 return;
             }
             
-            // Create CSV content
+            const summary = window.lastSummary;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            // Helper function to format values
+            function formatValue(key, value) {
+                if (key === 'aircraft_hours') {
+                    const hours = Math.floor(value);
+                    const minutes = Math.round((value - hours) * 60);
+                    return `${hours}h ${minutes}m`;
+                } else if (key === 'aircraft_kilometres' || key === 'passenger_kilometres_performed' || key === 'seat_kilometres_available' || 
+                           key.startsWith('tonne_kilometres')) {
+                    return (value / 1000).toFixed(2);
+                } else if (key.includes('load_factor')) {
+                    return value.toFixed(2);
+                } else if (key.includes('tonnes')) {
+                    return value.toFixed(2);
+                } else {
+                    return Math.round(value).toLocaleString();
+                }
+            }
+            
+            // Create CSV content with statistics (Persian)
             const headers = [
-                'Flight ID',
-                'From',
-                'To', 
-                'Register',
-                'Chocks Out',
-                'Chocks In',
-                'Duration',
-                'Adult',
-                'Child',
-                'Infant',
-                'Total Pax',
-                'Flight Date'
+                'معیار',
+                'مقدار داخلی',
+                'مقدار بین‌المللی',
+                'واحد'
             ];
+            
+            const metrics = [
+                { key: 'aircraft_kilometres', name: 'کیلومتر هواپیما', unit: '×1000 km' },
+                { key: 'aircraft_departures', name: 'تعداد برخاست', unit: '' },
+                { key: 'aircraft_hours', name: 'ساعات هواپیما', unit: '' },
+                { key: 'passengers_carried', name: 'مسافران حمل‌شده', unit: '' },
+                { key: 'freight_tonnes_carried', name: 'تناژ بار حمل‌شده', unit: 'تن' },
+                { key: 'mail_tonnes_carried', name: 'تناژ پست حمل‌شده', unit: 'تن' },
+                { key: 'passenger_kilometres_performed', name: 'مسافر-کیلومتر انجام‌شده', unit: '×1000' },
+                { key: 'seat_kilometres_available', name: 'صندلی-کیلومتر در دسترس', unit: '×1000' },
+                { key: 'passenger_load_factor', name: 'ضریب ظرفیت مسافر', unit: '%' },
+                { key: 'tonne_kilometres_performed_passengers', name: 'تن-کیلومتر انجام‌شده (مسافران شامل بار)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_freight', name: 'تن-کیلومتر انجام‌شده (بار)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_mail', name: 'تن-کیلومتر انجام‌شده (پست)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_total', name: 'تن-کیلومتر انجام‌شده (کل)', unit: '×1000' },
+                { key: 'tonne_kilometres_available', name: 'تن-کیلومتر در دسترس', unit: '×1000' },
+                { key: 'weight_load_factor', name: 'ضریب ظرفیت وزنی', unit: '%' }
+            ];
+            
+            const rows = metrics.map(metric => {
+                const domesticValue = formatValue(metric.key, summary[metric.key + '_domestic'] || 0);
+                const internationalValue = formatValue(metric.key, summary[metric.key + '_international'] || 0);
+                return [
+                    `"${metric.name}"`,
+                    domesticValue,
+                    internationalValue,
+                    `"${metric.unit}"`
+                ].join(',');
+            });
             
             const csvContent = [
                 headers.join(','),
-                ...currentData.map(row => [
-                    row.flight_id,
-                    `"${row.from_iata}"`,
-                    `"${row.to_iata}"`,
-                    `"${row.register}"`,
-                    `"${row.chocks_out}"`,
-                    `"${row.chocks_in}"`,
-                    `"${row.duration}"`,
-                    row.pax_adult,
-                    row.pax_child,
-                    row.pax_infant,
-                    row.total_pax,
-                    `"${row.flight_date}"`
-                ].join(','))
+                ...rows
             ].join('\n');
             
             // Create and download file
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }); // UTF-8 BOM for Excel
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', `flight_operations_${document.getElementById('fromDate').value}_to_${document.getElementById('toDate').value}.csv`);
+            link.setAttribute('download', `flight_operations_report_${fromDate}_to_${toDate}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -1133,36 +1758,72 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
 
         function downloadWord() {
-            if (currentData.length === 0) {
+            if (!window.lastSummary) {
                 alert(currentLanguage === 'en' ? 'No data to download. Please load flight data first.' : 'هیچ داده ای برای دانلود موجود نیست. لطفاً ابتدا داده های پرواز را بارگذاری کنید.');
                 return;
             }
             
-            // Create HTML content for Word document
+            const summary = window.lastSummary;
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
             
+            // Helper function to format values
+            function formatValue(key, value) {
+                if (key === 'aircraft_hours') {
+                    const hours = Math.floor(value);
+                    const minutes = Math.round((value - hours) * 60);
+                    return `${hours}h ${minutes}m`;
+                } else if (key === 'aircraft_kilometres' || key === 'passenger_kilometres_performed' || key === 'seat_kilometres_available' || 
+                           key.startsWith('tonne_kilometres')) {
+                    return (value / 1000).toFixed(2);
+                } else if (key.includes('load_factor')) {
+                    return value.toFixed(2);
+                } else if (key.includes('tonnes')) {
+                    return value.toFixed(2);
+                } else {
+                    return Math.round(value).toLocaleString();
+                }
+            }
+            
+            const metrics = [
+                { key: 'aircraft_kilometres', name: 'کیلومتر هواپیما', unit: '×1000 km' },
+                { key: 'aircraft_departures', name: 'تعداد برخاست', unit: '' },
+                { key: 'aircraft_hours', name: 'ساعات هواپیما', unit: '' },
+                { key: 'passengers_carried', name: 'مسافران حمل‌شده', unit: '' },
+                { key: 'freight_tonnes_carried', name: 'تناژ بار حمل‌شده', unit: 'تن' },
+                { key: 'mail_tonnes_carried', name: 'تناژ پست حمل‌شده', unit: 'تن' },
+                { key: 'passenger_kilometres_performed', name: 'مسافر-کیلومتر انجام‌شده', unit: '×1000' },
+                { key: 'seat_kilometres_available', name: 'صندلی-کیلومتر در دسترس', unit: '×1000' },
+                { key: 'passenger_load_factor', name: 'ضریب ظرفیت مسافر', unit: '%' },
+                { key: 'tonne_kilometres_performed_passengers', name: 'تن-کیلومتر انجام‌شده (مسافران شامل بار)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_freight', name: 'تن-کیلومتر انجام‌شده (بار)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_mail', name: 'تن-کیلومتر انجام‌شده (پست)', unit: '×1000' },
+                { key: 'tonne_kilometres_performed_total', name: 'تن-کیلومتر انجام‌شده (کل)', unit: '×1000' },
+                { key: 'tonne_kilometres_available', name: 'تن-کیلومتر در دسترس', unit: '×1000' },
+                { key: 'weight_load_factor', name: 'ضریب ظرفیت وزنی', unit: '%' }
+            ];
+            
             const htmlContent = `
 <!DOCTYPE html>
-<html>
+<html dir="rtl" lang="fa">
 <head>
     <meta charset="UTF-8">
-    <title>Flight Operations Report</title>
+    <title>گزارش عملیات پرواز</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
+        body { font-family: 'Tahoma', 'Arial', sans-serif; margin: 20px; direction: rtl; }
         .header { text-align: center; margin-bottom: 30px; }
         .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
         .subtitle { font-size: 18px; margin-bottom: 5px; }
         .org { font-size: 16px; margin-bottom: 5px; }
         .center { font-size: 14px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; direction: rtl; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: right; }
         th { background-color: #f0f0f0; font-weight: bold; }
         .summary { margin-top: 30px; }
-        .summary h3 { font-size: 18px; margin-bottom: 15px; }
-        .summary table { width: 50%; }
+        .summary h3 { font-size: 18px; margin-bottom: 15px; text-align: right; }
+        .summary table { width: 100%; }
         .footer { margin-top: 40px; border-top: 1px solid #000; padding-top: 20px; }
-        .contact-info { display: flex; justify-content: space-between; }
+        .contact-info { display: flex; justify-content: space-between; direction: rtl; }
         .contact-left, .contact-right { width: 45%; }
         .contact-row { margin-bottom: 10px; }
         .signature-line { border-bottom: 1px solid #000; width: 200px; display: inline-block; }
@@ -1170,56 +1831,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 </head>
 <body>
     <div class="header">
-        <div class="title">CAOIRI</div>
-        <div class="subtitle">Civil Aviation Organization of IRAN</div>
-        <div class="center">Center for Statistics and Computing</div>
-        <div class="title">Flight Operations Report</div>
-        <div>Period: ${fromDate} to ${toDate}</div>
+        <div class="title">سازمان هواپیمایی کشوری ایران</div>
+        <div class="subtitle">CAOIRI - Civil Aviation Organization of IRAN</div>
+        <div class="center">مرکز آمار و محاسبات</div>
+        <div class="title">گزارش عملیات پرواز</div>
+        <div>دوره: ${fromDate} تا ${toDate}</div>
     </div>
     
-    <table>
-        <thead>
-            <tr>
-                <th>Flight ID</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Register</th>
-                <th>Chocks Out</th>
-                <th>Chocks In</th>
-                <th>Duration</th>
-                <th>Adult</th>
-                <th>Child</th>
-                <th>Infant</th>
-                <th>Total Pax</th>
-                <th>Flight Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${currentData.map(row => `
-                <tr>
-                    <td>${row.flight_id}</td>
-                    <td>${row.from_iata}</td>
-                    <td>${row.to_iata}</td>
-                    <td>${row.register}</td>
-                    <td>${row.chocks_out}</td>
-                    <td>${row.chocks_in}</td>
-                    <td>${row.duration}</td>
-                    <td>${row.pax_adult}</td>
-                    <td>${row.pax_child}</td>
-                    <td>${row.pax_infant}</td>
-                    <td>${row.total_pax}</td>
-                    <td>${row.flight_date}</td>
-                </tr>
-            `).join('')}
-        </tbody>
-    </table>
-    
     <div class="summary">
-        <h3>Flight Statistics Summary</h3>
+        <h3>خلاصه آمار پروازها</h3>
         <table>
-            <tr><td>Total Flights</td><td>${currentData.length}</td></tr>
-            <tr><td>Total Passengers</td><td>${currentData.reduce((sum, row) => sum + row.total_pax, 0)}</td></tr>
-            <tr><td>Report Generated</td><td>${new Date().toLocaleDateString()}</td></tr>
+            <thead>
+                <tr>
+                    <th>معیار</th>
+                    <th>مقدار داخلی</th>
+                    <th>مقدار بین‌المللی</th>
+                    <th>واحد</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${metrics.map(metric => {
+                    const domesticValue = formatValue(metric.key, summary[metric.key + '_domestic'] || 0);
+                    const internationalValue = formatValue(metric.key, summary[metric.key + '_international'] || 0);
+                    return `
+                        <tr>
+                            <td>${metric.name}</td>
+                            <td>${domesticValue}</td>
+                            <td>${internationalValue}</td>
+                            <td>${metric.unit}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
         </table>
     </div>
     
@@ -1254,7 +1897,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', `flight_operations_${fromDate}_to_${toDate}.doc`);
+            link.setAttribute('download', `flight_operations_report_${fromDate}_to_${toDate}.doc`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();

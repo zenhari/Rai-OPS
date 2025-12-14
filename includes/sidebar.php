@@ -652,6 +652,7 @@ function getAbsolutePath($path) {
                                  checkPageAccessEnhanced('admin/settings/notification.php') ||
                                  checkPageAccessEnhanced('admin/settings/sms.php') ||
                                  checkPageAccessEnhanced('admin/settings/call_center/index.php') ||
+                                 checkPageAccessEnhanced('admin/settings/hiring/index.php') ||
                                  checkPageAccessEnhanced('admin/cao_api/index.php');
             ?>
             <?php if ($hasSettingsAccess): ?>
@@ -723,6 +724,14 @@ function getAbsolutePath($path) {
                     </a>
                     <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/settings/hiring/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/settings/hiring/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'hiring') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-user-tie mr-3 text-sm"></i>
+                        Hiring
+                    </a>
+                    <?php endif; ?>
+                    
                     <?php if (checkPageAccessEnhanced('admin/cao_api/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/cao_api/index.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/cao_api/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
@@ -775,7 +784,7 @@ function getAbsolutePath($path) {
             <?php endif; ?>
 
             <!-- CAA -->
-            <?php if (checkPageAccessEnhanced('admin/caa/city_per.php')): ?>
+            <?php if (checkPageAccessEnhanced('admin/caa/city_per.php') || checkPageAccessEnhanced('admin/caa/city_per_international.php') || checkPageAccessEnhanced('admin/caa/revenue.php') || checkPageAccessEnhanced('admin/caa/daily_report.php')): ?>
             <div class="space-y-1">
                 <button id="caa-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -788,8 +797,15 @@ function getAbsolutePath($path) {
                     <a href="<?php echo getAbsolutePath('admin/caa/city_per.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'city_per') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-route mr-3 text-sm"></i>
-                        City-Pairs Report
+                        City-Pairs Domestic
                     </a>
+                    <?php if (checkPageAccessEnhanced('admin/caa/city_per_international.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/caa/city_per_international.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'city_per_international') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-globe mr-3 text-sm"></i>
+                        City-Pairs International
+                    </a>
+                    <?php endif; ?>
                     <a href="<?php echo getAbsolutePath('admin/caa/revenue.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'revenue') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-dollar-sign mr-3 text-sm"></i>
@@ -1362,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open settings menu if on settings pages
-    else if (currentDir === 'home_base' || currentDir === 'safety_reports' || currentDir === 'settings' || currentDir === 'call_center' || currentPage === 'role_permission' || currentPage === 'backup_db' || currentPage === 'notification' || window.location.pathname.indexOf('/admin/cao_api/') !== -1) {
+    else if (currentDir === 'home_base' || currentDir === 'safety_reports' || currentDir === 'settings' || currentDir === 'call_center' || currentDir === 'hiring' || currentPage === 'role_permission' || currentPage === 'backup_db' || currentPage === 'notification' || window.location.pathname.indexOf('/admin/cao_api/') !== -1) {
         openMenu(settingsMenu, settingsArrow);
     }
     

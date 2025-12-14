@@ -1,0 +1,78 @@
+-- Hiring Table
+-- Stores hiring application data from BPM API
+
+CREATE TABLE IF NOT EXISTS `hiring` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `api_id` INT(11) NOT NULL COMMENT 'ID from BPM API',
+  `full_name` VARCHAR(255) DEFAULT NULL,
+  `birth_date` DATE DEFAULT NULL,
+  `national_id` VARCHAR(50) DEFAULT NULL,
+  `birth_place` VARCHAR(255) DEFAULT NULL,
+  `marital_status` VARCHAR(50) DEFAULT NULL,
+  `job_type` VARCHAR(50) DEFAULT NULL,
+  `email` VARCHAR(255) DEFAULT NULL,
+  `phone_number` VARCHAR(50) DEFAULT NULL,
+  `whatsapp_number` VARCHAR(50) DEFAULT NULL,
+  `telegram_number` VARCHAR(50) DEFAULT NULL,
+  `address` TEXT DEFAULT NULL,
+  `travel_readiness` VARCHAR(50) DEFAULT NULL,
+  `special_conditions` TEXT DEFAULT NULL,
+  `salary_expectations` TEXT DEFAULT NULL,
+  `available_times` TEXT DEFAULT NULL,
+  `interview_time` DATETIME DEFAULT NULL,
+  `status` VARCHAR(100) DEFAULT NULL,
+  `category_hiring_id` INT(11) DEFAULT NULL,
+  `category_name` VARCHAR(255) DEFAULT NULL,
+  `personal_photo_1` TEXT DEFAULT NULL,
+  `airline_applications_nira_id` INT(11) DEFAULT NULL,
+  `is_read` TINYINT(1) DEFAULT 0,
+  
+  -- JSON fields for arrays
+  `degree` JSON DEFAULT NULL,
+  `major` JSON DEFAULT NULL,
+  `university` JSON DEFAULT NULL,
+  `graduation_year` JSON DEFAULT NULL,
+  `job_title` JSON DEFAULT NULL,
+  `company_name` JSON DEFAULT NULL,
+  `duration` JSON DEFAULT NULL,
+  `job_description` JSON DEFAULT NULL,
+  `course_name` JSON DEFAULT NULL,
+  `institution` JSON DEFAULT NULL,
+  `course_year` JSON DEFAULT NULL,
+  `software_name` JSON DEFAULT NULL,
+  `skill_acquisition` JSON DEFAULT NULL,
+  `level` JSON DEFAULT NULL,
+  `language_name` JSON DEFAULT NULL,
+  `writing` JSON DEFAULT NULL,
+  `listening` JSON DEFAULT NULL,
+  `speaking` JSON DEFAULT NULL,
+  `translation` JSON DEFAULT NULL,
+  `relationship` JSON DEFAULT NULL,
+  `family_name` JSON DEFAULT NULL,
+  `workplace` JSON DEFAULT NULL,
+  `contact_number` JSON DEFAULT NULL,
+  `related_documents` JSON DEFAULT NULL,
+  `related_documents_files` JSON DEFAULT NULL,
+  `flight_history` JSON DEFAULT NULL,
+  `flight_history_time` JSON DEFAULT NULL,
+  `flight_history_company` JSON DEFAULT NULL,
+  
+  -- API timestamps
+  `api_created_at` DATETIME DEFAULT NULL,
+  `api_updated_at` DATETIME DEFAULT NULL,
+  
+  -- Local timestamps
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_api_id` (`api_id`),
+  KEY `idx_national_id` (`national_id`),
+  KEY `idx_email` (`email`),
+  KEY `idx_phone_number` (`phone_number`),
+  KEY `idx_status` (`status`),
+  KEY `idx_category_hiring_id` (`category_hiring_id`),
+  KEY `idx_full_name` (`full_name`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Hiring applications from BPM API';
+

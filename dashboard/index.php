@@ -1475,6 +1475,20 @@ try {
 
             <!-- Main Content -->
             <main class="flex-1 p-6">
+                <!-- Auto-Refresh Control -->
+                <div class="mb-4 flex items-center justify-end">
+                    <div class="flex items-center space-x-3 bg-white dark:bg-gray-800 rounded-lg shadow px-4 py-2 border border-gray-200 dark:border-gray-700">
+                        <span class="text-sm text-gray-600 dark:text-gray-400" id="refreshStatus">
+                            Auto-refresh: <span id="refreshCountdown">30</span>s
+                        </span>
+                        <button id="toggleRefreshBtn" 
+                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                            <i class="fas fa-pause mr-2" id="toggleIcon"></i>
+                            <span id="toggleText">Pause</span>
+                        </button>
+                    </div>
+                </div>
+                
                 <!-- Permission Banner -->
                 <?php include '../includes/permission_banner.php'; ?>
                 
@@ -1534,35 +1548,7 @@ try {
                 </div>
 
                 <!-- Safety Report Alert -->
-                <div class="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-6 mb-6">
-                    <div class="flex items-start">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                                <i class="fas fa-exclamation-triangle text-orange-600 dark:text-orange-400 text-lg"></i>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <h3 class="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
-                                Safety Report Required
-                            </h3>
-                            <p class="text-orange-700 dark:text-orange-300 mb-4">
-                                Do you have a safety report to submit? Please ensure all safety incidents and observations are properly documented.
-                            </p>
-                            <div class="flex space-x-3">
-                                <a href="<?php echo getAbsolutePath('admin/settings/safety_reports/add.php'); ?>" 
-                                   class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
-                                    <i class="fas fa-plus mr-2"></i>
-                                    Submit Safety Report
-                                </a>
-                                <button onclick="dismissAlert()" 
-                                        class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-300 text-sm font-medium rounded-md hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
-                                    <i class="fas fa-times mr-2"></i>
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
 
                 <!-- Today's Flight Timeline -->
                 <?php if (!empty($flightsByAircraft) && checkPageAccessEnhanced('dashboard/flight_monitoring.php')): ?>
@@ -2106,7 +2092,35 @@ try {
                     </div>
                 </div>
                 <?php endif; ?>
-
+                <div class="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-6 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-orange-600 dark:text-orange-400 text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
+                                Safety Report Required
+                            </h3>
+                            <p class="text-orange-700 dark:text-orange-300 mb-4">
+                                Do you have a safety report to submit? Please ensure all safety incidents and observations are properly documented.
+                            </p>
+                            <div class="flex space-x-3">
+                                <a href="<?php echo getAbsolutePath('admin/settings/safety_reports/add.php'); ?>" 
+                                   class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Submit Safety Report
+                                </a>
+                                <button onclick="dismissAlert()" 
+                                        class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-300 text-sm font-medium rounded-md hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                                    <i class="fas fa-times mr-2"></i>
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Recent Activity -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Recent Aircraft -->
@@ -4077,6 +4091,111 @@ try {
                 if (modal && modal.classList.contains('show')) {
                     closeFlightEditModal();
                 }
+            }
+        });
+        
+        // Auto-refresh functionality
+        let refreshInterval = null;
+        let countdownInterval = null;
+        let isPaused = false;
+        let countdown = 30;
+        const REFRESH_INTERVAL = 30000; // 30 seconds in milliseconds
+        
+        const toggleRefreshBtn = document.getElementById('toggleRefreshBtn');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const toggleText = document.getElementById('toggleText');
+        const refreshCountdown = document.getElementById('refreshCountdown');
+        const refreshStatus = document.getElementById('refreshStatus');
+        
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            
+            countdown = 30;
+            refreshCountdown.textContent = countdown;
+            
+            // Start countdown
+            countdownInterval = setInterval(() => {
+                if (!isPaused) {
+                    countdown--;
+                    refreshCountdown.textContent = countdown;
+                    
+                    if (countdown <= 0) {
+                        countdown = 30;
+                        // Refresh the page
+                        window.location.reload();
+                    }
+                }
+            }, 1000);
+            
+            // Backup refresh interval (in case countdown fails)
+            refreshInterval = setInterval(() => {
+                if (!isPaused) {
+                    window.location.reload();
+                }
+            }, REFRESH_INTERVAL);
+        }
+        
+        function toggleAutoRefresh() {
+            isPaused = !isPaused;
+            
+            if (isPaused) {
+                // Paused state - stop countdown
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                toggleIcon.classList.remove('fa-pause');
+                toggleIcon.classList.add('fa-play');
+                toggleText.textContent = 'Play';
+                refreshStatus.innerHTML = 'Auto-refresh: <span class="text-red-600 dark:text-red-400 font-semibold">Paused</span>';
+            } else {
+                // Active state - resume countdown
+                toggleIcon.classList.remove('fa-play');
+                toggleIcon.classList.add('fa-pause');
+                toggleText.textContent = 'Pause';
+                countdown = 30;
+                refreshCountdown.textContent = countdown;
+                refreshStatus.innerHTML = 'Auto-refresh: <span id="refreshCountdown">' + countdown + '</span>s';
+                // Restart countdown interval
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+                countdownInterval = setInterval(() => {
+                    if (!isPaused) {
+                        countdown--;
+                        const countdownEl = document.getElementById('refreshCountdown');
+                        if (countdownEl) {
+                            countdownEl.textContent = countdown;
+                        }
+                        
+                        if (countdown <= 0) {
+                            countdown = 30;
+                            // Refresh the page
+                            window.location.reload();
+                        }
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Initialize auto-refresh on page load
+        startAutoRefresh();
+        
+        // Add click handler to toggle button
+        toggleRefreshBtn.addEventListener('click', toggleAutoRefresh);
+        
+        // Clean up intervals when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
             }
         });
     </script>

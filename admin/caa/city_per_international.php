@@ -2,7 +2,7 @@
 require_once '../../config.php';
 
 // Check if user is logged in and has access to this page
-checkPageAccessWithRedirect('admin/caa/city_per.php');
+checkPageAccessWithRedirect('admin/caa/city_per_international.php');
 
 $current_user = getCurrentUser();
 $message = '';
@@ -62,11 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         // Exclude cancelled flights
         $whereConditions[] = "f.ScheduledTaskStatus NOT LIKE 'Cancelled'";
         
-        // Filter for Domestic flights only
-        // A flight is Domestic if BOTH From and To are Domestic
-        // Join with stations table to check if both From and To are Domestic
-        $whereConditions[] = "s_from.location_type = 'Domestic'";
-        $whereConditions[] = "s_to.location_type = 'Domestic'";
+        // Filter for International flights only
+        // A flight is International if at least one of From or To is International
+        // Join with stations table to check if either From or To is International
+        $whereConditions[] = "(s_from.location_type = 'International' OR s_to.location_type = 'International')";
         
         $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
         
@@ -149,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>City-Pairs Domestic - <?php echo PROJECT_NAME; ?></title>
+    <title>City-Pairs International - <?php echo PROJECT_NAME; ?></title>
     <script src="/assets/js/tailwind.js"></script>
     <link rel="stylesheet" href="/assets/css/roboto.css">
     <link rel="stylesheet" href="/assets/FontAwesome/css/all.css">
@@ -168,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 <div class="px-6 py-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">City-Pairs Domestic</h1>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Monthly City-Pairs and Traffic Report (Domestic Only)</p>
+                            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">City-Pairs International</h1>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Monthly City-Pairs and Traffic Report (International Only)</p>
                         </div>
                     </div>
                 </div>
@@ -536,7 +535,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', `city_pairs_report_${document.getElementById('year').value}.csv`);
+            link.setAttribute('download', `city_pairs_international_report_${document.getElementById('year').value}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -559,7 +558,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Monthly City-Pairs and Traffic Report</title>
+    <title>Monthly City-Pairs and Traffic Report (International)</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { text-align: center; margin-bottom: 30px; }
@@ -587,7 +586,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         <div class="title">CAOIRI</div>
         <div class="subtitle">Civil Aviation Organization of IRAN</div>
         <div class="center">Center for Statistics and Computing</div>
-        <div class="title">Monthly City-Pairs and Traffic Report</div>
+        <div class="title">Monthly City-Pairs and Traffic Report (International)</div>
         <div>Year: ${year}</div>
     </div>
     
@@ -669,7 +668,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', `city_pairs_report_${year}.doc`);
+            link.setAttribute('download', `city_pairs_international_report_${year}.doc`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -687,3 +686,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     </script>
 </body>
 </html>
+

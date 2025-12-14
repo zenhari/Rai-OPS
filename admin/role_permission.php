@@ -457,6 +457,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_hiring_page':
+            $pagePath = 'admin/settings/hiring/index.php';
+            $pageName = 'Hiring';
+            $requiredRoles = ['admin'];
+            $description = 'Manage hiring applications from BPM API';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Hiring page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Hiring page permission.';
+                }
+            } else {
+                $message = 'Hiring page permission already exists.';
+            }
+            break;
+
         case 'add_recency_management_page':
             $pagePath = 'admin/recency_management/index.php';
             $pageName = 'Recency Management';
@@ -637,18 +654,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         case 'add_caa_city_per_page':
             $pagePath = 'admin/caa/city_per.php';
-            $pageName = 'CAA City-Pairs Report';
+            $pageName = 'CAA City-Pairs Domestic';
             $requiredRoles = ['admin'];
-            $description = 'Generate monthly city-pairs and traffic reports for CAA';
+            $description = 'Generate monthly city-pairs and traffic reports for CAA (Domestic flights only)';
             $existingPermission = getPagePermission($pagePath);
             if (!$existingPermission) {
                 if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
-                    $message = 'CAA City-Pairs Report page permission added successfully.';
+                    $message = 'CAA City-Pairs Domestic page permission added successfully.';
                 } else {
-                    $error = 'Failed to add CAA City-Pairs Report page permission.';
+                    $error = 'Failed to add CAA City-Pairs Domestic page permission.';
                 }
             } else {
-                $message = 'CAA City-Pairs Report page permission already exists.';
+                $message = 'CAA City-Pairs Domestic page permission already exists.';
+            }
+            break;
+
+        case 'add_caa_city_per_international_page':
+            $pagePath = 'admin/caa/city_per_international.php';
+            $pageName = 'CAA City-Pairs International';
+            $requiredRoles = ['admin'];
+            $description = 'Generate monthly city-pairs and traffic reports for CAA (International flights only)';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'CAA City-Pairs International page permission added successfully.';
+                } else {
+                    $error = 'Failed to add CAA City-Pairs International page permission.';
+                }
+            } else {
+                $message = 'CAA City-Pairs International page permission already exists.';
             }
             break;
 
@@ -1993,6 +2027,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addCallCenterPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-phone-alt mr-2"></i>Call Center
                         </button>
+                        <button onclick="addHiringPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-user-tie mr-2"></i>Hiring
+                        </button>
                         <button onclick="addRecencyManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-cog mr-2"></i>Recency Management
                         </button>
@@ -2024,7 +2061,10 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                             <i class="fas fa-calendar-check mr-2"></i>Roster Management
                         </button>
                         <button onclick="addCAACityPerPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
-                            <i class="fas fa-chart-bar mr-2"></i>CAA City-Pairs
+                            <i class="fas fa-chart-bar mr-2"></i>CAA City-Pairs Domestic
+                        </button>
+                        <button onclick="addCAACityPerInternationalPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-globe mr-2"></i>CAA City-Pairs International
                         </button>
                         <button onclick="addCAARevenuePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-dollar-sign mr-2"></i>CAA Revenue
@@ -2996,6 +3036,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
+        function addHiringPage() {
+            if (confirm('Add Hiring page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_hiring_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         function addRecencyManagementPage() {
             if (confirm('Add Recency Management page permission with admin role?')) {
                 const button = event.target;
@@ -3167,7 +3224,7 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
         }
 
         function addCAACityPerPage() {
-            if (confirm('Add CAA City-Pairs Report page permission with admin role?')) {
+            if (confirm('Add CAA City-Pairs Domestic page permission with admin role?')) {
                 const button = event.target;
                 const originalText = button.innerHTML;
                 button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
@@ -3177,6 +3234,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_caa_city_per_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addCAACityPerInternationalPage() {
+            if (confirm('Add CAA City-Pairs International page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_caa_city_per_international_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();
