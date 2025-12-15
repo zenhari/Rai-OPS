@@ -5,6 +5,7 @@ require_once '../config.php';
 checkPageAccessWithRedirect('admin/role_permission.php');
 
 $current_user = getCurrentUser();
+$isSuperAdmin = ($current_user['role_name'] ?? '') === 'super_admin';
 $message = '';
 $error = '';
 
@@ -62,6 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $description = trim($_POST['description'] ?? '');
             $pageName = trim($_POST['page_name'] ?? '');
             
+            // For non-super-admins, prevent assigning admin/super_admin to pages
+            if (!$isSuperAdmin && !empty($requiredRoles)) {
+                $requiredRoles = array_values(array_filter($requiredRoles, function($role) {
+                    $role = strtolower($role);
+                    return $role !== 'super_admin' && $role !== 'admin';
+                }));
+            }
+            
             if (empty($requiredRoles)) {
                 $error = 'At least one role must be selected.';
             } elseif (empty($pageName)) {
@@ -89,6 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
         case 'add_new_pages':
             $defaultRoles = $_POST['default_roles'] ?? ['admin'];
+            // For non-super-admins, strip admin/super_admin from defaults
+            if (!$isSuperAdmin && !empty($defaultRoles)) {
+                $defaultRoles = array_values(array_filter($defaultRoles, function($role) {
+                    $role = strtolower($role);
+                    return $role !== 'super_admin' && $role !== 'admin';
+                }));
+            }
             $added = addAllNewPages($defaultRoles);
             if ($added > 0) {
                 $message = "Successfully added {$added} new page(s) to permissions.";
@@ -102,6 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $pageName = trim($_POST['page_name'] ?? '');
             $requiredRoles = $_POST['required_roles'] ?? [];
             $description = trim($_POST['description'] ?? '');
+            
+            // For non-super-admins, prevent assigning admin/super_admin to pages
+            if (!$isSuperAdmin && !empty($requiredRoles)) {
+                $requiredRoles = array_values(array_filter($requiredRoles, function($role) {
+                    $role = strtolower($role);
+                    return $role !== 'super_admin' && $role !== 'admin';
+                }));
+            }
             
             if (empty($pagePath) || empty($pageName) || empty($requiredRoles)) {
                 $error = 'All fields are required.';
@@ -473,6 +497,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $message = 'Hiring page permission already exists.';
             }
             break;
+            
+        case 'add_my_location_page':
+            $pagePath = 'admin/profile/my_location.php';
+            $pageName = 'Get My Location';
+            $requiredRoles = ['admin', 'pilot', 'employee'];
+            $description = 'Get and share your current location (mobile, tablet, or laptop)';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Get My Location page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Get My Location page permission.';
+                }
+            } else {
+                $message = 'Get My Location page permission already exists.';
+            }
+            break;
+            
+        case 'add_user_location_page':
+            $pagePath = 'admin/users/location/index.php';
+            $pageName = 'User Location';
+            $requiredRoles = ['admin'];
+            $description = 'View all user locations on map with filtering options';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'User Location page permission added successfully.';
+                } else {
+                    $error = 'Failed to add User Location page permission.';
+                }
+            } else {
+                $message = 'User Location page permission already exists.';
+            }
+            break;
+            
+        case 'add_last_location_page':
+            $pagePath = 'admin/settings/last_location/index.php';
+            $pageName = 'Last Location';
+            $requiredRoles = ['admin'];
+            $description = 'View last known location of mobile users on map with profile pictures';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Last Location page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Last Location page permission.';
+                }
+            } else {
+                $message = 'Last Location page permission already exists.';
+            }
+            break;
 
         case 'add_recency_management_page':
             $pagePath = 'admin/recency_management/index.php';
@@ -686,6 +761,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_caa_divert_flight_page':
+            $pagePath = 'admin/caa/divert_flight.php';
+            $pageName = 'CAA Divert Flight';
+            $requiredRoles = ['admin'];
+            $description = 'View flights that diverted and returned to origin airport';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'CAA Divert Flight page permission added successfully.';
+                } else {
+                    $error = 'Failed to add CAA Divert Flight page permission.';
+                }
+            } else {
+                $message = 'CAA Divert Flight page permission already exists.';
+            }
+            break;
+
         case 'add_caa_revenue_page':
             $pagePath = 'admin/caa/revenue.php';
             $pageName = 'CAA Revenue-generating Flights';
@@ -853,6 +945,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } else {
                 $message = 'Office Time page permission already exists.';
+            }
+            break;
+            
+        case 'add_maintenance_mode_page':
+            $pagePath = 'admin/settings/maintenance_mode.php';
+            $pageName = 'Maintenance Mode';
+            $requiredRoles = ['super_admin'];
+            $description = 'Configure global maintenance window and countdown (only for Super Admin)';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Maintenance Mode page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Maintenance Mode page permission.';
+                }
+            } else {
+                $message = 'Maintenance Mode page permission already exists.';
             }
             break;
             
@@ -1378,7 +1487,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 $permissions = getAllPagePermissions();
+
+// For non-super-admins, hide pages that are exclusively for Super Admin (and not for admin)
+if (!$isSuperAdmin) {
+    $permissions = array_values(array_filter($permissions, function($perm) {
+        $roles = json_decode($perm['required_roles'] ?? '[]', true) ?: [];
+        $rolesLower = array_map('strtolower', $roles);
+        // If super_admin is required but admin is NOT, hide from normal admins
+        return !(in_array('super_admin', $rolesLower, true) && !in_array('admin', $rolesLower, true));
+    }));
+}
+
 $available_roles = getAllRolesFromTable();
+
+// For non-super-admins, remove super_admin and admin from role selection lists
+if (!$isSuperAdmin) {
+    $available_roles = array_values(array_filter($available_roles, function($role) {
+        $name = strtolower($role['name'] ?? '');
+        return $name !== 'super_admin' && $name !== 'admin';
+    }));
+}
 
 // Function to find sidebar menu location for a page
 function findSidebarLocation($pagePath) {
@@ -1396,13 +1524,14 @@ function findSidebarLocation($pagePath) {
         'Flight Management' => ['admin/flights/', 'admin/crew/', 'admin/operations/'],
         'User Management' => ['admin/users/', 'admin/roles/'],
         'Recency' => ['admin/users/personnel_recency/', 'admin/users/certificate/'],
-        'Settings' => ['admin/settings/', 'admin/odb/', 'admin/role_permission.php'],
+        'Settings' => ['admin/settings/', 'admin/odb/', 'admin/role_permission.php', 'admin/settings/last_location/'],
         'Flight Load' => ['admin/flight_load/'],
         'CAA' => ['admin/caa/'],
         'E-Lib' => ['admin/elib/'],
         'EFB' => ['admin/efb/'],
         'ODB Notifications' => ['admin/odb/list.php'],
         'Profile' => ['admin/profile/'],
+        'User Management' => ['admin/users/location/'],
         'Transport' => ['admin/transport/'],
         'Messages' => ['admin/messages/'],
         'Training' => ['admin/training/']
@@ -2030,6 +2159,15 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addHiringPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-user-tie mr-2"></i>Hiring
                         </button>
+                        <button onclick="addMyLocationPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-map-marker-alt mr-2"></i>Get My Location
+                        </button>
+                        <button onclick="addUserLocationPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-map-marked-alt mr-2"></i>User Location
+                        </button>
+                        <button onclick="addLastLocationPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-map-marker-alt mr-2"></i>Last Location
+                        </button>
                         <button onclick="addRecencyManagementPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-cog mr-2"></i>Recency Management
                         </button>
@@ -2069,6 +2207,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addCAARevenuePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-dollar-sign mr-2"></i>CAA Revenue
                         </button>
+                        <button onclick="addCAADivertFlightPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>CAA Divert Flight
+                        </button>
                         <button onclick="addCAADailyReportPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-file-excel mr-2"></i>CAA Daily Report
                         </button>
@@ -2095,6 +2236,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addOfficeTimePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-clock mr-2"></i>Office Time
+                        </button>
+                        <button onclick="addMaintenanceModePage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-tools mr-2"></i>Maintenance Mode
                         </button>
                         <button onclick="addNotificationPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-bell mr-2"></i>Notifications
@@ -3053,6 +3197,57 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
+        function addMyLocationPage() {
+            if (confirm('Add Get My Location page permission with admin, pilot, and employee roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_my_location_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addUserLocationPage() {
+            if (confirm('Add User Location page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_user_location_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addLastLocationPage() {
+            if (confirm('Add Last Location page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_last_location_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         function addRecencyManagementPage() {
             if (confirm('Add Recency Management page permission with admin role?')) {
                 const button = event.target;
@@ -3274,6 +3469,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
+        function addCAADivertFlightPage() {
+            if (confirm('Add CAA Divert Flight page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_caa_divert_flight_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         function addCAADailyReportPage() {
             if (confirm('Add CAA Daily Report page permission with admin role?')) {
                 const button = event.target;
@@ -3421,6 +3633,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_office_time_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addMaintenanceModePage() {
+            if (confirm('Add Maintenance Mode page permission with super_admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_maintenance_mode_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

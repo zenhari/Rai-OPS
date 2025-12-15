@@ -1267,16 +1267,6 @@ function getStatusColor($status) {
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-home mr-1 text-xs"></i>Home Base</span><span class="info-value">' + escapeHtml(formatValue(flight.HomeBases)) + '</span></div>';
             html += '</div></div>';
             
-            // Pilot Information Card
-            html += '<div class="info-card">';
-            html += '<div class="info-card-title"><i class="fas fa-user-tie text-purple-500"></i>Pilot Information</div>';
-            html += '<div class="space-y-2">';
-            html += '<div class="info-row"><span class="info-label"><i class="fas fa-user mr-1 text-xs"></i>Pilot Name</span><span class="info-value">' + escapeHtml(formatValue((flight.FirstName || '') + ' ' + (flight.LastName || ''))) + '</span></div>';
-            html += '<div class="info-row"><span class="info-label"><i class="fas fa-id-badge mr-1 text-xs"></i>Pilot ID</span><span class="info-value">' + escapeHtml(formatValue(flight.CmdPilotID)) + '</span></div>';
-            html += '<div class="info-row"><span class="info-label"><i class="fas fa-clock mr-1 text-xs"></i>Flight Hours</span><span class="info-value">' + escapeHtml(formatValue(flight.FlightHours)) + '</span></div>';
-            html += '<div class="info-row"><span class="info-label"><i class="fas fa-star mr-1 text-xs"></i>Command Hours</span><span class="info-value">' + escapeHtml(formatValue(flight.CommandHours)) + '</span></div>';
-            html += '</div></div>';
-            
             // Schedule Information Card
             html += '<div class="info-card">';
             html += '<div class="info-card-title"><i class="fas fa-calendar-alt text-green-500"></i>Schedule Information</div>';
@@ -1323,7 +1313,12 @@ function getStatusColor($status) {
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-user mr-1 text-xs"></i>Adults</span><span class="info-value">' + escapeHtml(formatValue(flight.adult)) + '</span></div>';
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-child mr-1 text-xs"></i>Children</span><span class="info-value">' + escapeHtml(formatValue(flight.child)) + '</span></div>';
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-baby mr-1 text-xs"></i>Infants</span><span class="info-value">' + escapeHtml(formatValue(flight.infant)) + '</span></div>';
-            html += '<div class="info-row"><span class="info-label"><i class="fas fa-users-cog mr-1 text-xs"></i>Total Passengers</span><span class="info-value font-bold text-blue-600 dark:text-blue-400">' + escapeHtml(formatValue(flight.total_pax)) + '</span></div>';
+            // Calculate total from adult + child + infant
+            const adult = parseInt(flight.adult) || 0;
+            const child = parseInt(flight.child) || 0;
+            const infant = parseInt(flight.infant) || 0;
+            const calculatedTotal = adult + child + infant;
+            html += '<div class="info-row"><span class="info-label"><i class="fas fa-users-cog mr-1 text-xs"></i>Total Passengers</span><span class="info-value font-bold text-blue-600 dark:text-blue-400">' + calculatedTotal + ' <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(Adult + Child + Infant)</span></span></div>';
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-box mr-1 text-xs"></i>PCS</span><span class="info-value">' + escapeHtml(formatValue(flight.pcs)) + '</span></div>';
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-weight mr-1 text-xs"></i>Weight (kg)</span><span class="info-value">' + escapeHtml(formatValue(flight.weight)) + '</span></div>';
             html += '<div class="info-row"><span class="info-label"><i class="fas fa-gas-pump mr-1 text-xs"></i>Uplift Fuel (L)</span><span class="info-value">' + escapeHtml(formatValue(flight.uplift_fuel)) + '</span></div>';

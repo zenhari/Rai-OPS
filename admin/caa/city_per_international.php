@@ -59,18 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         
         // Airline filters removed - no corresponding columns in database
         
-        // Exclude cancelled flights
-        $whereConditions[] = "f.ScheduledTaskStatus NOT LIKE 'Cancelled'";
+        // Exclude cancelled flights (handle NULL values properly)
+        $whereConditions[] = "(f.ScheduledTaskStatus IS NULL OR f.ScheduledTaskStatus NOT LIKE 'Cancelled')";
         
         // Filter for International flights only
         // A flight is International if at least one of From or To is International
-        // Join with stations table to check if either From or To is International
+        // Handle NULL values from LEFT JOIN - if station doesn't exist, exclude from international filter
         $whereConditions[] = "(s_from.location_type = 'International' OR s_to.location_type = 'International')";
         
         $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
         
         // Extract From and To from Route (format: "FROM-TO")
         // Join with stations table twice to check both origin and destination
+        // Use LEFT JOIN to include flights even if stations don't exist in stations table
         $query = "SELECT 
                     f.Route,
                     SUBSTRING_INDEX(f.Route, '-', 1) as from_code,
@@ -79,12 +80,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     SUM(CAST(f.child AS UNSIGNED)) as total_child,
                     SUM(CAST(f.infant AS UNSIGNED)) as total_infant,
                     SUM(CAST(f.total_pax AS UNSIGNED)) as total_passengers,
-                    COUNT(*) as flight_count
+                    COUNT(*) as flight_count,
+                    s_from.location_type as from_location_type,
+                    s_to.location_type as to_location_type
                   FROM flights f
-                  INNER JOIN stations s_from ON s_from.iata_code = SUBSTRING_INDEX(f.Route, '-', 1)
-                  INNER JOIN stations s_to ON s_to.iata_code = SUBSTRING_INDEX(f.Route, '-', -1)
+                  LEFT JOIN stations s_from ON s_from.iata_code = SUBSTRING_INDEX(f.Route, '-', 1)
+                  LEFT JOIN stations s_to ON s_to.iata_code = SUBSTRING_INDEX(f.Route, '-', -1)
                   $whereClause
-                  GROUP BY f.Route, from_code, to_code
+                  GROUP BY f.Route, from_code, to_code, s_from.location_type, s_to.location_type
                   ORDER BY total_passengers DESC";
         
         $stmt = $db->prepare($query);
@@ -135,7 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             'error' => 'Database error: ' . $e->getMessage(),
             'debug' => [
                 'months' => $selectedMonths ?? 'not set',
-                'year' => $year ?? 'not set'
+                'year' => $year ?? 'not set',
+                'query' => $query ?? 'not set',
+                'params' => $params ?? 'not set'
             ]
         ]);
         exit;

@@ -1,11 +1,21 @@
 <?php
 // Check if user is logged in
 if (!isLoggedIn()) {
-    header('Location: /login.php');
-    exit();
+    if (!headers_sent()) {
+        header('Location: /login.php');
+        exit();
+    }
 }
 
 $current_user = getCurrentUser();
+$userRole = $current_user['role_name'] ?? 'employee';
+
+// Check maintenance mode - don't show sidebar for non-super_admin users
+// Note: Don't redirect here as headers may already be sent
+// Redirect is handled in dashboard/index.php and config.php's checkPageAccessWithRedirect()
+$maintenanceMode = getMaintenanceMode();
+$showSidebar = !($maintenanceMode['is_active'] && $userRole !== 'super_admin');
+
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
 
@@ -65,6 +75,7 @@ function getAbsolutePath($path) {
 }
 </style>
 
+<?php if ($showSidebar): ?>
 <!-- Sidebar -->
 <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
     <!-- Sidebar Header -->
@@ -345,6 +356,7 @@ function getAbsolutePath($path) {
                                checkPageAccessEnhanced('admin/operations/fdp_calculation.php') ||
                                checkPageAccessEnhanced('admin/operations/crew_list.php') ||
                                checkPageAccessEnhanced('admin/operations/journey_log.php') ||
+                               checkPageAccessEnhanced('admin/operations/journey_log_list.php') ||
                                checkPageAccessEnhanced('admin/operations/flight_roles.php') ||
                                checkPageAccessEnhanced('admin/operations/metar_tafor.php');
             ?>
@@ -454,23 +466,29 @@ function getAbsolutePath($path) {
                     </a>
                     <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/operations/journey_log.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/operations/journey_log.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'journey_log') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-clipboard-list mr-3 text-sm"></i>
                         Journey Log
                     </a>
+                    <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/operations/journey_log_list.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/operations/journey_log_list.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'journey_log_list') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-list-alt mr-3 text-sm"></i>
                         Journey Log List
                     </a>
+                    <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/operations/flight_roles.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/operations/flight_roles.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'flight_roles') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-user-tag mr-3 text-sm"></i>
                         Flight Roles
                     </a>
+                    <?php endif; ?>
                     
                     <?php if (checkPageAccessEnhanced('admin/operations/roster/index.php') || checkPageAccessEnhanced('admin/operations/roster/roster_management.php')): ?>
                     <!-- Roster Submenu -->
@@ -545,7 +563,7 @@ function getAbsolutePath($path) {
             <?php endif; ?>
 
             <!-- User Management Section (Only for admin/manager roles or individual access) -->
-            <?php if (hasAnyRole(['admin', 'manager']) || checkPageAccessEnhanced('admin/users/index.php') || checkPageAccessEnhanced('admin/users/add.php') || checkPageAccessEnhanced('admin/roles/index.php') || checkPageAccessEnhanced('admin/users/office_time.php')): ?>
+            <?php if (hasAnyRole(['admin', 'manager']) || checkPageAccessEnhanced('admin/users/index.php') || checkPageAccessEnhanced('admin/users/add.php') || checkPageAccessEnhanced('admin/roles/index.php') || checkPageAccessEnhanced('admin/users/office_time.php') || checkPageAccessEnhanced('admin/users/location/index.php')): ?>
             <div class="space-y-1">
                 <button id="users-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -592,6 +610,14 @@ function getAbsolutePath($path) {
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'contacts' && $current_dir == 'users') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-address-book mr-3 text-sm"></i>
                         Contacts
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if (checkPageAccessEnhanced('admin/users/location/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/users/location/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'location') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-map-marked-alt mr-3 text-sm"></i>
+                        User Location
                     </a>
                     <?php endif; ?>
                     
@@ -653,7 +679,9 @@ function getAbsolutePath($path) {
                                  checkPageAccessEnhanced('admin/settings/sms.php') ||
                                  checkPageAccessEnhanced('admin/settings/call_center/index.php') ||
                                  checkPageAccessEnhanced('admin/settings/hiring/index.php') ||
-                                 checkPageAccessEnhanced('admin/cao_api/index.php');
+                                 checkPageAccessEnhanced('admin/settings/last_location/index.php') ||
+                                 checkPageAccessEnhanced('admin/cao_api/index.php') ||
+                                 checkPageAccessEnhanced('admin/settings/maintenance_mode.php');
             ?>
             <?php if ($hasSettingsAccess): ?>
             <div class="space-y-1">
@@ -732,11 +760,27 @@ function getAbsolutePath($path) {
                     </a>
                     <?php endif; ?>
                     
+                    <?php if (checkPageAccessEnhanced('admin/settings/last_location/index.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/settings/last_location/index.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'last_location') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-map-marker-alt mr-3 text-sm"></i>
+                        Last Location
+                    </a>
+                    <?php endif; ?>
+                    
                     <?php if (checkPageAccessEnhanced('admin/cao_api/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/cao_api/index.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/cao_api/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-paper-plane mr-3 text-sm"></i>
                         CAO API
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if (checkPageAccessEnhanced('admin/settings/maintenance_mode.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/settings/maintenance_mode.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'maintenance_mode') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-tools mr-3 text-sm"></i>
+                        Maintenance Mode
                     </a>
                     <?php endif; ?>
                 </div>
@@ -784,7 +828,7 @@ function getAbsolutePath($path) {
             <?php endif; ?>
 
             <!-- CAA -->
-            <?php if (checkPageAccessEnhanced('admin/caa/city_per.php') || checkPageAccessEnhanced('admin/caa/city_per_international.php') || checkPageAccessEnhanced('admin/caa/revenue.php') || checkPageAccessEnhanced('admin/caa/daily_report.php')): ?>
+            <?php if (checkPageAccessEnhanced('admin/caa/city_per.php') || checkPageAccessEnhanced('admin/caa/city_per_international.php') || checkPageAccessEnhanced('admin/caa/revenue.php') || checkPageAccessEnhanced('admin/caa/daily_report.php') || checkPageAccessEnhanced('admin/caa/divert_flight.php')): ?>
             <div class="space-y-1">
                 <button id="caa-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -811,6 +855,13 @@ function getAbsolutePath($path) {
                         <i class="fas fa-dollar-sign mr-3 text-sm"></i>
                         Revenue Flights
                     </a>
+                    <?php if (checkPageAccessEnhanced('admin/caa/divert_flight.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/caa/divert_flight.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'divert_flight') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-exclamation-triangle mr-3 text-sm"></i>
+                        Divert Flight
+                    </a>
+                    <?php endif; ?>
                     <?php if (checkPageAccessEnhanced('admin/caa/daily_report.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/caa/daily_report.php'); ?>" 
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'caa' && $current_page == 'daily_report') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
@@ -917,7 +968,8 @@ function getAbsolutePath($path) {
                                  checkPageAccessEnhanced('admin/profile/my_recency.php') ||
                                  checkPageAccessEnhanced('admin/profile/my_certificate.php') ||
                                  checkPageAccessEnhanced('admin/profile/my_quiz.php') ||
-                                 checkPageAccessEnhanced('admin/profile/my_class.php');
+                                 checkPageAccessEnhanced('admin/profile/my_class.php') ||
+                                 checkPageAccessEnhanced('admin/profile/my_location.php');
             ?>
             <?php if ($hasMyRiopsAccess): ?>
             <div class="space-y-1">
@@ -964,6 +1016,14 @@ function getAbsolutePath($path) {
                        class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'my_class') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-chalkboard-teacher mr-3 text-sm"></i>
                         My Class
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if (checkPageAccessEnhanced('admin/profile/my_location.php')): ?>
+                    <a href="<?php echo getAbsolutePath('admin/profile/my_location.php'); ?>" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_page == 'my_location') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-map-marker-alt mr-3 text-sm"></i>
+                        Get My Location
                     </a>
                     <?php endif; ?>
                 </div>
@@ -1099,7 +1159,7 @@ function getAbsolutePath($path) {
         <div class="flex items-center justify-center space-x-2 pt-3 border-t border-gray-200 dark:border-gray-600">
             <img src="<?php echo getAbsolutePath('assets/logo.png'); ?>" alt="MMZ Logo" class="w-6 h-6 rounded-full">
             <div class="text-xs text-gray-400 dark:text-gray-500">
-            Developed by <a href="<?php echo getAbsolutePath('about.php'); ?>" class="font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">MMZ</a> Copyright ©2025
+            Developed by <a href="<?php echo getAbsolutePath('about.php'); ?>" class="font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">Mehdi Zenhari</a>
             </div>
         </div>
         
@@ -1113,6 +1173,7 @@ function getAbsolutePath($path) {
 <button id="sidebar-toggle" class="fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-md shadow-lg lg:hidden">
     <i class="fas fa-bars text-gray-600 dark:text-gray-300"></i>
 </button>
+<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -1353,7 +1414,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open users menu if on user management pages
-    else if (currentDir === 'users' || currentDir === 'roles' || currentPage === 'add' || currentPage === 'edit') {
+    else if (currentDir === 'users' || currentDir === 'roles' || currentDir === 'location' || currentPage === 'add' || currentPage === 'edit') {
         openMenu(usersMenu, usersArrow);
     }
     
@@ -1373,12 +1434,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open caa menu if on caa pages
-    else if (currentDir === 'caa') {
+    else if (currentDir === 'caa' || currentPage === 'city_per' || currentPage === 'city_per_international' || currentPage === 'revenue' || currentPage === 'divert_flight' || currentPage === 'daily_report') {
         openMenu(caaMenu, caaArrow);
     }
     
     // Auto-open settings menu if on settings pages
-    else if (currentDir === 'home_base' || currentDir === 'safety_reports' || currentDir === 'settings' || currentDir === 'call_center' || currentDir === 'hiring' || currentPage === 'role_permission' || currentPage === 'backup_db' || currentPage === 'notification' || window.location.pathname.indexOf('/admin/cao_api/') !== -1) {
+    else if (currentDir === 'home_base' || currentDir === 'safety_reports' || currentDir === 'settings' || currentDir === 'call_center' || currentDir === 'hiring' || currentDir === 'last_location' || currentPage === 'role_permission' || currentPage === 'backup_db' || currentPage === 'notification' || window.location.pathname.indexOf('/admin/cao_api/') !== -1) {
         openMenu(settingsMenu, settingsArrow);
     }
     
@@ -1388,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-open My RIOPS menu if on profile pages
-    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz' || currentPage === 'my_class') {
+    else if (currentDir === 'profile' || currentPage === 'my_recency' || currentPage === 'my_certificate' || currentPage === 'my_quiz' || currentPage === 'my_class' || currentPage === 'my_location') {
         openMenu(myRiOPSMenu, myRiOPSArrow);
     }
     
@@ -1626,3 +1687,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Notification System -->
 <script src="<?php echo getAbsolutePath('assets/js/notifications.js'); ?>"></script>
+
+<!-- Auto Location Tracker -->
+<script src="<?php echo getAbsolutePath('assets/js/auto_location_tracker.js'); ?>"></script>

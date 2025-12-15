@@ -8,6 +8,7 @@ if (!isLoggedIn() || !checkPageAccessEnhanced('admin/roles/index.php')) {
 }
 
 $current_user = getCurrentUser();
+$isSuperAdmin = ($current_user['role_name'] ?? '') === 'super_admin';
 $message = '';
 $error = '';
 
@@ -22,7 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $description = trim($_POST['description'] ?? '');
             $color = trim($_POST['color'] ?? '#3B82F6');
             
-            if (empty($roleName)) {
+            // Prevent non-super-admins from creating core roles
+            if (!$isSuperAdmin && in_array(strtolower($roleName), ['admin', 'super_admin'], true)) {
+                $error = 'You are not allowed to create this core role.';
+            } elseif (empty($roleName)) {
                 $error = 'Role name is required.';
             } else {
                 $roleData = [
@@ -56,7 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $description = trim($_POST['description'] ?? '');
             $color = trim($_POST['color'] ?? '#3B82F6');
             
-            if (empty($roleId) || empty($roleName)) {
+            // Prevent non-super-admins from renaming any role to core names
+            if (!$isSuperAdmin && in_array(strtolower($roleName), ['admin', 'super_admin'], true)) {
+                $error = 'You are not allowed to use this core role name.';
+            } elseif (empty($roleId) || empty($roleName)) {
                 $error = 'Role ID and name are required.';
             } else {
                 $roleData = [
@@ -88,6 +95,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (empty($roleId)) {
                 $error = 'Role ID is required.';
             } else {
+                // Prevent non-super-admins from deleting core roles as extra safety
+                if (!$isSuperAdmin) {
+                    $roleToDelete = null;
+                    foreach (getAllRolesFromTable() as $r) {
+                        if ((string)$r['id'] === (string)$roleId) {
+                            $roleToDelete = $r;
+                            break;
+                        }
+                    }
+                    if ($roleToDelete && in_array(strtolower($roleToDelete['name']), ['admin', 'super_admin'], true)) {
+                        $error = 'You are not allowed to delete this core role.';
+                        break;
+                    }
+                }
                 $result = deleteRoleFromTable($roleId);
                 if ($result['success']) {
                     $message = 'Role deleted successfully.';
@@ -193,9 +214,16 @@ $roles = getAllRolesFromTable();
                                         No roles found
                                     </td>
                                 </tr>
-                            <?php else: ?>
+                                <?php else: ?>
                                 <?php foreach ($roles as $role): ?>
-                                    <?php $usageCount = getRoleUsageCountFromTable($role['id']); ?>
+                                    <?php
+                                    // Hide core roles from non-super-admins
+                                    $isCoreRole = in_array(strtolower($role['name']), ['admin', 'super_admin'], true);
+                                    if (!$isSuperAdmin && $isCoreRole) {
+                                        continue;
+                                    }
+                                    $usageCount = getRoleUsageCountFromTable($role['id']);
+                                    ?>
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">

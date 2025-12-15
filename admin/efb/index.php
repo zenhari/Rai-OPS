@@ -1995,6 +1995,672 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Handle Significant WX PDF generation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generate_sigwx_pdf') {
+    $flightId = !empty($_POST['flight_id']) ? (int)$_POST['flight_id'] : null;
+    $fltDate = trim($_POST['flt_date'] ?? '');
+    
+        if ($flightId && $fltDate) {
+        // Get flight information
+        $flightStmt = $db->prepare("SELECT * FROM flights WHERE FlightID = ? LIMIT 1");
+        $flightStmt->execute([$flightId]);
+        $flight = $flightStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($flight) {
+            // Use current date (today) for API request
+            $currentDate = date('Y-m-d');
+            
+            // API Configuration
+            $apiUrl = 'http://192.168.201.23:8000/api/sigwx-images?date=' . urlencode($currentDate);
+            $apiToken = '70a17eb5-242b-4020-84c6-caeba9297b3b';
+            
+            // Fetch images from API
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $apiUrl,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: ' . $apiToken,
+                    'Accept: application/json'
+                ]
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            
+            if ($curlError) {
+                $error = 'API Error: ' . $curlError;
+            } elseif ($httpCode !== 200) {
+                $error = 'API Error: HTTP ' . $httpCode;
+            } else {
+                $apiData = json_decode($response, true);
+                
+                if (isset($apiData['sigwx']) && is_array($apiData['sigwx']) && !empty($apiData['sigwx'])) {
+                    try {
+                        // Increase memory limit for image processing
+                        $originalMemoryLimit = ini_get('memory_limit');
+                        ini_set('memory_limit', '256M');
+                        
+                        // Create weather directory structure: admin/efb/weather/YYYY-MM-DD/
+                        $weatherBaseDir = __DIR__ . DIRECTORY_SEPARATOR . 'weather';
+                        $weatherDateDir = $weatherBaseDir . DIRECTORY_SEPARATOR . $currentDate;
+                        
+                        // Create directories if they don't exist
+                        if (!is_dir($weatherBaseDir)) {
+                            @mkdir($weatherBaseDir, 0775, true);
+                            if (!is_dir($weatherBaseDir)) {
+                                @mkdir($weatherBaseDir, 0755, true);
+                            }
+                        }
+                        
+                        if (!is_dir($weatherDateDir)) {
+                            @mkdir($weatherDateDir, 0775, true);
+                            if (!is_dir($weatherDateDir)) {
+                                @mkdir($weatherDateDir, 0755, true);
+                            }
+                        }
+                        
+                        // Ensure directories are writable
+                        if (is_dir($weatherBaseDir) && !is_writable($weatherBaseDir)) {
+                            @chmod($weatherBaseDir, 0775);
+                            if (!is_writable($weatherBaseDir)) {
+                                @chmod($weatherBaseDir, 0755);
+                            }
+                        }
+                        
+                        if (is_dir($weatherDateDir) && !is_writable($weatherDateDir)) {
+                            @chmod($weatherDateDir, 0775);
+                            if (!is_writable($weatherDateDir)) {
+                                @chmod($weatherDateDir, 0755);
+                            }
+                        }
+                        
+                        if (!is_writable($weatherDateDir)) {
+                            throw new Exception('Weather directory is not writable: ' . $weatherDateDir);
+                        }
+                        
+                        // Determine mPDF class name
+                        $mpdfClass = class_exists('\Mpdf\Mpdf') ? '\Mpdf\Mpdf' : 'mPDF';
+                        
+                        // Create PDF with custom tempDir
+                        $mpdf = new $mpdfClass([
+                            'mode' => 'utf-8',
+                            'format' => 'A4',
+                            'orientation' => 'L', // Landscape for images
+                            'margin_left' => 5,
+                            'margin_right' => 5,
+                            'margin_top' => 5,
+                            'margin_bottom' => 5,
+                            'margin_header' => 0,
+                            'margin_footer' => 0,
+                            'tempDir' => $weatherDateDir // Use weather date directory as tempDir
+                        ]);
+                        
+                        $mpdf->SetTitle('Significant WX - ' . $currentDate);
+                        $mpdf->SetAuthor('RaiOPS');
+                        
+                        // Build HTML content with images
+                        $html = '<html><head><meta charset="UTF-8"><style>body { font-family: Arial, sans-serif; } .image-container { text-align: center; margin-bottom: 20px; page-break-inside: avoid; } .image-container img { max-width: 100%; height: auto; } .image-title { font-weight: bold; margin-bottom: 10px; }</style></head><body>';
+                        $html .= '<h1 style="text-align: center; margin-bottom: 20px;">Significant Weather - ' . htmlspecialchars($currentDate) . '</h1>';
+                        
+                        $baseUrl = 'http://randd/Avmet-For-Raiapp';
+                        
+                        // Function to resize image
+                        $resizeImage = function($imageData, $maxWidth = 1920, $maxHeight = 1080, $quality = 85) {
+                            if (!function_exists('imagecreatefromstring')) {
+                                return $imageData; // GD not available, return original
+                            }
+                            
+                            $source = @imagecreatefromstring($imageData);
+                            if (!$source) {
+                                return $imageData; // Failed to create image, return original
+                            }
+                            
+                            $sourceWidth = imagesx($source);
+                            $sourceHeight = imagesy($source);
+                            
+                            // Calculate new dimensions
+                            $ratio = min($maxWidth / $sourceWidth, $maxHeight / $sourceHeight);
+                            if ($ratio >= 1) {
+                                imagedestroy($source);
+                                return $imageData; // Image is smaller than max, return original
+                            }
+                            
+                            $newWidth = (int)($sourceWidth * $ratio);
+                            $newHeight = (int)($sourceHeight * $ratio);
+                            
+                            // Create new image
+                            $destination = imagecreatetruecolor($newWidth, $newHeight);
+                            imagealphablending($destination, false);
+                            imagesavealpha($destination, true);
+                            
+                            // Resize
+                            imagecopyresampled($destination, $source, 0, 0, 0, 0, $newWidth, $newHeight, $sourceWidth, $sourceHeight);
+                            
+                            // Output to buffer
+                            ob_start();
+                            imagepng($destination, null, 9); // PNG with compression
+                            $resizedData = ob_get_clean();
+                            
+                            imagedestroy($source);
+                            imagedestroy($destination);
+                            
+                            return $resizedData ?: $imageData;
+                        };
+                        
+                        foreach ($apiData['sigwx'] as $image) {
+                            // Convert URL from /files/sigwx/... to http://randd/Avmet-For-Raiapp/sigwx/...
+                            $imageUrl = $image['url'] ?? '';
+                            if (strpos($imageUrl, '/files/') === 0) {
+                                $imageUrl = $baseUrl . substr($imageUrl, 6); // Remove /files
+                            } else {
+                                $imageUrl = $baseUrl . $imageUrl;
+                            }
+                            
+                            $imageName = $image['file'] ?? 'Unknown';
+                            
+                            // Download image to temporary file
+                            $imageCh = curl_init();
+                            curl_setopt_array($imageCh, [
+                                CURLOPT_URL => $imageUrl,
+                                CURLOPT_RETURNTRANSFER => true,
+                                CURLOPT_TIMEOUT => 30,
+                                CURLOPT_FOLLOWLOCATION => true,
+                                CURLOPT_SSL_VERIFYPEER => false,
+                                CURLOPT_SSL_VERIFYHOST => false
+                            ]);
+                            
+                            $imageData = curl_exec($imageCh);
+                            $imageHttpCode = curl_getinfo($imageCh, CURLINFO_HTTP_CODE);
+                            curl_close($imageCh);
+                            
+                            if ($imageHttpCode === 200 && $imageData) {
+                                // Resize image to reduce memory usage (max 1920x1080)
+                                $resizedImageData = $resizeImage($imageData, 1920, 1080);
+                                
+                                // Save to temporary file
+                                $tempImageFile = $weatherDateDir . DIRECTORY_SEPARATOR . 'temp_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imageName);
+                                @file_put_contents($tempImageFile, $resizedImageData);
+                                
+                                if (file_exists($tempImageFile)) {
+                                    // Use file path instead of base64
+                                    $html .= '<div class="image-container">';
+                                    $html .= '<div class="image-title">' . htmlspecialchars($imageName) . '</div>';
+                                    $html .= '<img src="' . htmlspecialchars($tempImageFile) . '" style="max-width: 100%; height: auto;" alt="' . htmlspecialchars($imageName) . '">';
+                                    $html .= '</div>';
+                                    
+                                    // Clean up memory
+                                    unset($imageData, $resizedImageData);
+                                }
+                            }
+                        }
+                        
+                        $html .= '</body></html>';
+                        
+                        $mpdf->WriteHTML($html);
+                        
+                        // Generate unique filename
+                        $pdfFilename = 'sigwx_' . $currentDate . '_' . time() . '.pdf';
+                        $pdfPath = $weatherDateDir . DIRECTORY_SEPARATOR . $pdfFilename;
+                        
+                        // Save PDF
+                        $mpdf->Output($pdfPath, 'F');
+                        
+                        // Clean up temporary image files
+                        $tempFiles = glob($weatherDateDir . DIRECTORY_SEPARATOR . 'temp_*');
+                        foreach ($tempFiles as $tempFile) {
+                            @unlink($tempFile);
+                        }
+                        
+                        // Restore original memory limit
+                        ini_set('memory_limit', $originalMemoryLimit);
+                        
+                        if (file_exists($pdfPath)) {
+                            // Store PDF info in database
+                            $fileData = [
+                                'filename' => $pdfFilename,
+                                'path' => '/admin/efb/weather/' . $currentDate . '/' . $pdfFilename,
+                                'size' => filesize($pdfPath),
+                                'date' => $currentDate,
+                                'generated_at' => date('Y-m-d H:i:s')
+                            ];
+                            
+                            // Get existing PDF files
+                            $checkPdfStmt = $db->prepare("SELECT id, sigwx_pdf_data FROM efb_records WHERE flight_id = ? AND flt_date = ? LIMIT 1");
+                            $checkPdfStmt->execute([$flightId, $fltDate]);
+                            $pdfRecord = $checkPdfStmt->fetch(PDO::FETCH_ASSOC);
+                            
+                            if ($pdfRecord) {
+                                $existingPdfs = json_decode($pdfRecord['sigwx_pdf_data'] ?? '[]', true) ?: [];
+                                // Remove old PDFs for the same date
+                                $existingPdfs = array_filter($existingPdfs, function($pdf) use ($currentDate) {
+                                    return ($pdf['date'] ?? '') !== $currentDate;
+                                });
+                                $existingPdfs = array_values($existingPdfs);
+                                $existingPdfs[] = $fileData;
+                                $updateStmt = $db->prepare("UPDATE efb_records SET sigwx_pdf_data = ? WHERE id = ?");
+                                $updateStmt->execute([json_encode($existingPdfs, JSON_UNESCAPED_SLASHES), $pdfRecord['id']]);
+                            } else {
+                                $currentUser = getCurrentUser();
+                                $insertStmt = $db->prepare("INSERT INTO efb_records (flight_id, task_name, flt_date, sigwx_pdf_data, created_by) VALUES (?, ?, ?, ?, ?)");
+                                $insertStmt->execute([
+                                    $flightId,
+                                    $flight['TaskName'] ?? '',
+                                    $fltDate,
+                                    json_encode([$fileData], JSON_UNESCAPED_SLASHES),
+                                    $currentUser['id'] ?? null
+                                ]);
+                            }
+                            
+                            $message = 'Significant WX PDF generated successfully.';
+                            header('Location: ?view_efb=1&flight_id=' . $flightId . '&flight_date=' . urlencode($fltDate) . '&msg=' . urlencode($message));
+                            exit;
+                        } else {
+                            $error = 'PDF file was not created successfully.';
+                        }
+                    } catch (\Exception $e) {
+                        $error = 'PDF generation failed: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'No Significant WX images found for date: ' . $currentDate;
+                }
+            }
+        } else {
+            $error = 'Flight not found.';
+        }
+    } else {
+        $error = 'Invalid request.';
+    }
+}
+
+// Handle Significant WX PDF deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_sigwx_pdf') {
+    $flightId = !empty($_POST['flight_id']) ? (int)$_POST['flight_id'] : null;
+    $fltDate = trim($_POST['flt_date'] ?? '');
+    $pdfPath = trim($_POST['pdf_path'] ?? '');
+    
+    if ($flightId && $fltDate && $pdfPath) {
+        $checkStmt = $db->prepare("SELECT id, sigwx_pdf_data FROM efb_records WHERE flight_id = ? AND flt_date = ? LIMIT 1");
+        $checkStmt->execute([$flightId, $fltDate]);
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing && !empty($existing['sigwx_pdf_data'])) {
+            $pdfs = json_decode($existing['sigwx_pdf_data'], true) ?: [];
+            $updatedPdfs = [];
+            $pdfDeleted = false;
+            
+            foreach ($pdfs as $pdf) {
+                if (($pdf['path'] ?? '') !== $pdfPath) {
+                    $updatedPdfs[] = $pdf;
+                } else {
+                    $pdfDeleted = true;
+                    // Convert path from /admin/efb/weather/YYYY-MM-DD/filename.pdf to absolute path
+                    $absolutePath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $pdfPath), DIRECTORY_SEPARATOR);
+                    if (file_exists($absolutePath)) {
+                        @unlink($absolutePath);
+                    }
+                }
+            }
+            
+            if ($pdfDeleted) {
+                if (empty($updatedPdfs)) {
+                    $updateStmt = $db->prepare("UPDATE efb_records SET sigwx_pdf_data = NULL WHERE id = ?");
+                    $updateStmt->execute([$existing['id']]);
+                } else {
+                    $updateStmt = $db->prepare("UPDATE efb_records SET sigwx_pdf_data = ? WHERE id = ?");
+                    $updateStmt->execute([json_encode($updatedPdfs, JSON_UNESCAPED_SLASHES), $existing['id']]);
+                }
+                $message = 'PDF deleted successfully.';
+                header('Location: ?view_efb=1&flight_id=' . $flightId . '&flight_date=' . urlencode($fltDate) . '&msg=' . urlencode($message));
+                exit;
+            }
+        }
+    }
+}
+
+// Handle Wind & Temp Chart PDF generation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generate_wtemp_pdf') {
+    $flightId = !empty($_POST['flight_id']) ? (int)$_POST['flight_id'] : null;
+    $fltDate = trim($_POST['flt_date'] ?? '');
+    
+    if ($flightId && $fltDate) {
+        // Get flight information
+        $flightStmt = $db->prepare("SELECT * FROM flights WHERE FlightID = ? LIMIT 1");
+        $flightStmt->execute([$flightId]);
+        $flight = $flightStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($flight) {
+            // Use current date (today) for API request
+            $currentDate = date('Y-m-d');
+            
+            // API Configuration
+            $apiUrl = 'http://randd:8000/api/wtemp-images?date=' . urlencode($currentDate);
+            $apiToken = '70a17eb5-242b-4020-84c6-caeba9297b3b';
+            
+            // Fetch images from API
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $apiUrl,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: ' . $apiToken,
+                    'Accept: application/json'
+                ]
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            
+            if ($curlError) {
+                $error = 'API Error: ' . $curlError;
+            } elseif ($httpCode !== 200) {
+                $error = 'API Error: HTTP ' . $httpCode;
+            } else {
+                $apiData = json_decode($response, true);
+                
+                // Check for wtemp array in response
+                $images = [];
+                if (isset($apiData['wtemp']) && is_array($apiData['wtemp']) && !empty($apiData['wtemp'])) {
+                    $images = $apiData['wtemp'];
+                } elseif (isset($apiData['data']) && is_array($apiData['data']) && !empty($apiData['data'])) {
+                    $images = $apiData['data'];
+                } elseif (is_array($apiData) && !empty($apiData)) {
+                    $images = $apiData;
+                }
+                
+                if (!empty($images)) {
+                    try {
+                        // Increase memory limit for image processing
+                        $originalMemoryLimit = ini_get('memory_limit');
+                        ini_set('memory_limit', '256M');
+                        
+                        // Create weather directory structure: admin/efb/weather/YYYY-MM-DD/
+                        $weatherBaseDir = __DIR__ . DIRECTORY_SEPARATOR . 'weather';
+                        $weatherDateDir = $weatherBaseDir . DIRECTORY_SEPARATOR . $currentDate;
+                        
+                        // Create directories if they don't exist
+                        if (!is_dir($weatherBaseDir)) {
+                            @mkdir($weatherBaseDir, 0775, true);
+                            if (!is_dir($weatherBaseDir)) {
+                                @mkdir($weatherBaseDir, 0755, true);
+                            }
+                        }
+                        
+                        if (!is_dir($weatherDateDir)) {
+                            @mkdir($weatherDateDir, 0775, true);
+                            if (!is_dir($weatherDateDir)) {
+                                @mkdir($weatherDateDir, 0755, true);
+                            }
+                        }
+                        
+                        // Ensure directories are writable
+                        if (is_dir($weatherBaseDir) && !is_writable($weatherBaseDir)) {
+                            @chmod($weatherBaseDir, 0775);
+                            if (!is_writable($weatherBaseDir)) {
+                                @chmod($weatherBaseDir, 0755);
+                            }
+                        }
+                        
+                        if (is_dir($weatherDateDir) && !is_writable($weatherDateDir)) {
+                            @chmod($weatherDateDir, 0775);
+                            if (!is_writable($weatherDateDir)) {
+                                @chmod($weatherDateDir, 0755);
+                            }
+                        }
+                        
+                        if (!is_writable($weatherDateDir)) {
+                            throw new Exception('Weather directory is not writable: ' . $weatherDateDir);
+                        }
+                        
+                        // Determine mPDF class name
+                        $mpdfClass = class_exists('\Mpdf\Mpdf') ? '\Mpdf\Mpdf' : 'mPDF';
+                        
+                        // Create PDF with custom tempDir
+                        $mpdf = new $mpdfClass([
+                            'mode' => 'utf-8',
+                            'format' => 'A4',
+                            'orientation' => 'L', // Landscape for images
+                            'margin_left' => 5,
+                            'margin_right' => 5,
+                            'margin_top' => 5,
+                            'margin_bottom' => 5,
+                            'margin_header' => 0,
+                            'margin_footer' => 0,
+                            'tempDir' => $weatherDateDir // Use weather date directory as tempDir
+                        ]);
+                        
+                        $mpdf->SetTitle('Wind & Temp Chart - ' . $currentDate);
+                        $mpdf->SetAuthor('RaiOPS');
+                        
+                        // Build HTML content with images
+                        $html = '<html><head><meta charset="UTF-8"><style>body { font-family: Arial, sans-serif; } .image-container { text-align: center; margin-bottom: 20px; page-break-inside: avoid; } .image-container img { max-width: 100%; height: auto; } .image-title { font-weight: bold; margin-bottom: 10px; }</style></head><body>';
+                        $html .= '<h1 style="text-align: center; margin-bottom: 20px;">Wind & Temperature Chart - ' . htmlspecialchars($currentDate) . '</h1>';
+                        
+                        $baseUrl = 'http://randd/Avmet-For-Raiapp';
+                        
+                        // Function to resize image
+                        $resizeImage = function($imageData, $maxWidth = 1920, $maxHeight = 1080, $quality = 85) {
+                            if (!function_exists('imagecreatefromstring')) {
+                                return $imageData; // GD not available, return original
+                            }
+                            
+                            $source = @imagecreatefromstring($imageData);
+                            if (!$source) {
+                                return $imageData; // Failed to create image, return original
+                            }
+                            
+                            $sourceWidth = imagesx($source);
+                            $sourceHeight = imagesy($source);
+                            
+                            // Calculate new dimensions
+                            $ratio = min($maxWidth / $sourceWidth, $maxHeight / $sourceHeight);
+                            if ($ratio >= 1) {
+                                imagedestroy($source);
+                                return $imageData; // Image is smaller than max, return original
+                            }
+                            
+                            $newWidth = (int)($sourceWidth * $ratio);
+                            $newHeight = (int)($sourceHeight * $ratio);
+                            
+                            // Create new image
+                            $destination = imagecreatetruecolor($newWidth, $newHeight);
+                            imagealphablending($destination, false);
+                            imagesavealpha($destination, true);
+                            
+                            // Resize
+                            imagecopyresampled($destination, $source, 0, 0, 0, 0, $newWidth, $newHeight, $sourceWidth, $sourceHeight);
+                            
+                            // Output to buffer
+                            ob_start();
+                            imagepng($destination, null, 9); // PNG with compression
+                            $resizedData = ob_get_clean();
+                            
+                            imagedestroy($source);
+                            imagedestroy($destination);
+                            
+                            return $resizedData ?: $imageData;
+                        };
+                        
+                        foreach ($images as $image) {
+                            // Convert URL from /files/wtemp/... to http://randd/Avmet-For-Raiapp/wtemp/...
+                            $imageUrl = $image['url'] ?? '';
+                            if (strpos($imageUrl, '/files/') === 0) {
+                                $imageUrl = $baseUrl . substr($imageUrl, 6); // Remove /files
+                            } else {
+                                $imageUrl = $baseUrl . $imageUrl;
+                            }
+                            
+                            $imageName = $image['file'] ?? 'Unknown';
+                            
+                            // Download image to temporary file
+                            $imageCh = curl_init();
+                            curl_setopt_array($imageCh, [
+                                CURLOPT_URL => $imageUrl,
+                                CURLOPT_RETURNTRANSFER => true,
+                                CURLOPT_TIMEOUT => 30,
+                                CURLOPT_FOLLOWLOCATION => true,
+                                CURLOPT_SSL_VERIFYPEER => false,
+                                CURLOPT_SSL_VERIFYHOST => false
+                            ]);
+                            
+                            $imageData = curl_exec($imageCh);
+                            $imageHttpCode = curl_getinfo($imageCh, CURLINFO_HTTP_CODE);
+                            curl_close($imageCh);
+                            
+                            if ($imageHttpCode === 200 && $imageData) {
+                                // Resize image to reduce memory usage (max 1920x1080)
+                                $resizedImageData = $resizeImage($imageData, 1920, 1080);
+                                
+                                // Save to temporary file
+                                $tempImageFile = $weatherDateDir . DIRECTORY_SEPARATOR . 'temp_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imageName);
+                                @file_put_contents($tempImageFile, $resizedImageData);
+                                
+                                if (file_exists($tempImageFile)) {
+                                    // Use file path instead of base64
+                                    $html .= '<div class="image-container">';
+                                    $html .= '<div class="image-title">' . htmlspecialchars($imageName) . '</div>';
+                                    $html .= '<img src="' . htmlspecialchars($tempImageFile) . '" style="max-width: 100%; height: auto;" alt="' . htmlspecialchars($imageName) . '">';
+                                    $html .= '</div>';
+                                    
+                                    // Clean up memory immediately
+                                    unset($imageData, $resizedImageData);
+                                }
+                            }
+                        }
+                        
+                        $html .= '</body></html>';
+                        
+                        $mpdf->WriteHTML($html);
+                        
+                        // Generate unique filename
+                        $pdfFilename = 'wtemp_' . $currentDate . '_' . time() . '.pdf';
+                        $pdfPath = $weatherDateDir . DIRECTORY_SEPARATOR . $pdfFilename;
+                        
+                        // Save PDF
+                        $mpdf->Output($pdfPath, 'F');
+                        
+                        // Clean up temporary image files
+                        $tempFiles = glob($weatherDateDir . DIRECTORY_SEPARATOR . 'temp_*');
+                        foreach ($tempFiles as $tempFile) {
+                            @unlink($tempFile);
+                        }
+                        
+                        // Restore original memory limit
+                        ini_set('memory_limit', $originalMemoryLimit);
+                        
+                        if (file_exists($pdfPath)) {
+                            // Store PDF info in database
+                            $fileData = [
+                                'filename' => $pdfFilename,
+                                'path' => '/admin/efb/weather/' . $currentDate . '/' . $pdfFilename,
+                                'size' => filesize($pdfPath),
+                                'date' => $currentDate,
+                                'generated_at' => date('Y-m-d H:i:s')
+                            ];
+                            
+                            // Get existing PDF files
+                            $checkPdfStmt = $db->prepare("SELECT id, wtemp_pdf_data FROM efb_records WHERE flight_id = ? AND flt_date = ? LIMIT 1");
+                            $checkPdfStmt->execute([$flightId, $fltDate]);
+                            $pdfRecord = $checkPdfStmt->fetch(PDO::FETCH_ASSOC);
+                            
+                            if ($pdfRecord) {
+                                $existingPdfs = json_decode($pdfRecord['wtemp_pdf_data'] ?? '[]', true) ?: [];
+                                // Remove old PDFs for the same date
+                                $existingPdfs = array_filter($existingPdfs, function($pdf) use ($currentDate) {
+                                    return ($pdf['date'] ?? '') !== $currentDate;
+                                });
+                                $existingPdfs = array_values($existingPdfs);
+                                $existingPdfs[] = $fileData;
+                                $updateStmt = $db->prepare("UPDATE efb_records SET wtemp_pdf_data = ? WHERE id = ?");
+                                $updateStmt->execute([json_encode($existingPdfs, JSON_UNESCAPED_SLASHES), $pdfRecord['id']]);
+                            } else {
+                                $currentUser = getCurrentUser();
+                                $insertStmt = $db->prepare("INSERT INTO efb_records (flight_id, task_name, flt_date, wtemp_pdf_data, created_by) VALUES (?, ?, ?, ?, ?)");
+                                $insertStmt->execute([
+                                    $flightId,
+                                    $flight['TaskName'] ?? '',
+                                    $fltDate,
+                                    json_encode([$fileData], JSON_UNESCAPED_SLASHES),
+                                    $currentUser['id'] ?? null
+                                ]);
+                            }
+                            
+                            $message = 'Wind & Temp Chart PDF generated successfully.';
+                            header('Location: ?view_efb=1&flight_id=' . $flightId . '&flight_date=' . urlencode($fltDate) . '&msg=' . urlencode($message));
+                            exit;
+                        } else {
+                            $error = 'PDF file was not created successfully.';
+                        }
+                    } catch (\Exception $e) {
+                        $error = 'PDF generation failed: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'No Wind & Temp Chart images found for date: ' . $currentDate;
+                }
+            }
+        } else {
+            $error = 'Flight not found.';
+        }
+    } else {
+        $error = 'Invalid request.';
+    }
+}
+
+// Handle Wind & Temp Chart PDF deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_wtemp_pdf') {
+    $flightId = !empty($_POST['flight_id']) ? (int)$_POST['flight_id'] : null;
+    $fltDate = trim($_POST['flt_date'] ?? '');
+    $pdfPath = trim($_POST['pdf_path'] ?? '');
+    
+    if ($flightId && $fltDate && $pdfPath) {
+        $checkStmt = $db->prepare("SELECT id, wtemp_pdf_data FROM efb_records WHERE flight_id = ? AND flt_date = ? LIMIT 1");
+        $checkStmt->execute([$flightId, $fltDate]);
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing && !empty($existing['wtemp_pdf_data'])) {
+            $pdfs = json_decode($existing['wtemp_pdf_data'], true) ?: [];
+            $updatedPdfs = [];
+            $pdfDeleted = false;
+            
+            foreach ($pdfs as $pdf) {
+                if (($pdf['path'] ?? '') !== $pdfPath) {
+                    $updatedPdfs[] = $pdf;
+                } else {
+                    $pdfDeleted = true;
+                    // Convert path from /admin/efb/weather/YYYY-MM-DD/filename.pdf to absolute path
+                    $absolutePath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $pdfPath), DIRECTORY_SEPARATOR);
+                    if (file_exists($absolutePath)) {
+                        @unlink($absolutePath);
+                    }
+                }
+            }
+            
+            if ($pdfDeleted) {
+                if (empty($updatedPdfs)) {
+                    $updateStmt = $db->prepare("UPDATE efb_records SET wtemp_pdf_data = NULL WHERE id = ?");
+                    $updateStmt->execute([$existing['id']]);
+                } else {
+                    $updateStmt = $db->prepare("UPDATE efb_records SET wtemp_pdf_data = ? WHERE id = ?");
+                    $updateStmt->execute([json_encode($updatedPdfs, JSON_UNESCAPED_SLASHES), $existing['id']]);
+                }
+                $message = 'PDF deleted successfully.';
+                header('Location: ?view_efb=1&flight_id=' . $flightId . '&flight_date=' . urlencode($fltDate) . '&msg=' . urlencode($message));
+                exit;
+            }
+        }
+    }
+}
+
 // Handle WX Forecast file deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_wx_forecast_file') {
     $flightId = !empty($_POST['flight_id']) ? (int)$_POST['flight_id'] : null;
@@ -2300,8 +2966,8 @@ if ($viewEFB && $selectedFlightId && $selectedDate) {
     
     // Get EFB record if exists
     if ($selectedFlight) {
-        // Ensure notam_data and notam_pdf_data columns exist before selecting
-        $columnsToCheck = ['notam_data', 'notam_pdf_data'];
+        // Ensure notam_data, notam_pdf_data, sigwx_pdf_data, and wtemp_pdf_data columns exist before selecting
+        $columnsToCheck = ['notam_data', 'notam_pdf_data', 'sigwx_pdf_data', 'wtemp_pdf_data'];
         foreach ($columnsToCheck as $column) {
             try {
                 $checkColumnStmt = $db->query("SHOW COLUMNS FROM efb_records LIKE '{$column}'");
@@ -2995,7 +3661,66 @@ function efb_safe($str) {
                                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Significant WX</h3>
                                 </div>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Significant Weather Information</p>
-                                <div class="text-xs text-gray-500 dark:text-gray-500 italic">Configuration pending...</div>
+                                
+                                <?php 
+                                $sigwxPdfFiles = [];
+                                if ($efbRecord && !empty($efbRecord['sigwx_pdf_data'])) {
+                                    $sigwxPdfFiles = json_decode($efbRecord['sigwx_pdf_data'], true) ?: [];
+                                }
+                                ?>
+                                
+                                <!-- Generate PDF Button -->
+                                <form method="POST" class="mt-4">
+                                    <input type="hidden" name="action" value="generate_sigwx_pdf">
+                                    <input type="hidden" name="flight_id" value="<?php echo (int)$selectedFlightId; ?>">
+                                    <input type="hidden" name="flt_date" value="<?php echo efb_safe($selectedDate); ?>">
+                                    
+                                    <button type="submit" 
+                                            class="w-full px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 
+                                                   text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
+                                                   transition-all duration-200 flex items-center justify-center">
+                                        <i class="fas fa-file-pdf mr-2"></i>
+                                        Generate Significant WX PDF
+                                    </button>
+                                </form>
+                                
+                                <!-- Display generated PDF files -->
+                                <?php if (!empty($sigwxPdfFiles)): ?>
+                                <div class="mt-4 space-y-2">
+                                    <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Generated PDF Files:</div>
+                                    <?php foreach ($sigwxPdfFiles as $file): ?>
+                                    <div class="flex items-center justify-between bg-white dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="flex items-center flex-1 min-w-0">
+                                            <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                                            <span class="text-xs text-gray-700 dark:text-gray-300 truncate"><?php echo efb_safe($file['filename'] ?? basename($file['path'])); ?></span>
+                                            <?php if (isset($file['date'])): ?>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(<?php echo efb_safe($file['date']); ?>)</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center space-x-2 ml-2">
+                                            <a href="<?php echo efb_safe(base_url() . ltrim($file['path'], '/')); ?>" target="_blank" 
+                                               class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" 
+                                               title="View/Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this PDF?');">
+                                                <input type="hidden" name="action" value="delete_sigwx_pdf">
+                                                <input type="hidden" name="flight_id" value="<?php echo (int)$selectedFlightId; ?>">
+                                                <input type="hidden" name="flt_date" value="<?php echo efb_safe($selectedDate); ?>">
+                                                <input type="hidden" name="pdf_path" value="<?php echo efb_safe($file['path']); ?>">
+                                                <button type="submit" 
+                                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" 
+                                                        title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php else: ?>
+                                <div class="text-xs text-gray-500 dark:text-gray-500 italic mt-2">No PDF generated yet. Click the button above to generate.</div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Wind & Temp Chart Card -->
@@ -3008,7 +3733,66 @@ function efb_safe($str) {
                                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Wind & Temp Chart</h3>
                                 </div>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Wind and Temperature Charts</p>
-                                <div class="text-xs text-gray-500 dark:text-gray-500 italic">Configuration pending...</div>
+                                
+                                <?php 
+                                $wtempPdfFiles = [];
+                                if ($efbRecord && !empty($efbRecord['wtemp_pdf_data'])) {
+                                    $wtempPdfFiles = json_decode($efbRecord['wtemp_pdf_data'], true) ?: [];
+                                }
+                                ?>
+                                
+                                <!-- Generate PDF Button -->
+                                <form method="POST" class="mt-4">
+                                    <input type="hidden" name="action" value="generate_wtemp_pdf">
+                                    <input type="hidden" name="flight_id" value="<?php echo (int)$selectedFlightId; ?>">
+                                    <input type="hidden" name="flt_date" value="<?php echo efb_safe($selectedDate); ?>">
+                                    
+                                    <button type="submit" 
+                                            class="w-full px-4 py-2.5 bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 
+                                                   text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
+                                                   transition-all duration-200 flex items-center justify-center">
+                                        <i class="fas fa-file-pdf mr-2"></i>
+                                        Generate Wind & Temp Chart PDF
+                                    </button>
+                                </form>
+                                
+                                <!-- Display generated PDF files -->
+                                <?php if (!empty($wtempPdfFiles)): ?>
+                                <div class="mt-4 space-y-2">
+                                    <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Generated PDF Files:</div>
+                                    <?php foreach ($wtempPdfFiles as $file): ?>
+                                    <div class="flex items-center justify-between bg-white dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="flex items-center flex-1 min-w-0">
+                                            <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                                            <span class="text-xs text-gray-700 dark:text-gray-300 truncate"><?php echo efb_safe($file['filename'] ?? basename($file['path'])); ?></span>
+                                            <?php if (isset($file['date'])): ?>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(<?php echo efb_safe($file['date']); ?>)</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center space-x-2 ml-2">
+                                            <a href="<?php echo efb_safe(base_url() . ltrim($file['path'], '/')); ?>" target="_blank" 
+                                               class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" 
+                                               title="View/Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this PDF?');">
+                                                <input type="hidden" name="action" value="delete_wtemp_pdf">
+                                                <input type="hidden" name="flight_id" value="<?php echo (int)$selectedFlightId; ?>">
+                                                <input type="hidden" name="flt_date" value="<?php echo efb_safe($selectedDate); ?>">
+                                                <input type="hidden" name="pdf_path" value="<?php echo efb_safe($file['path']); ?>">
+                                                <button type="submit" 
+                                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" 
+                                                        title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php else: ?>
+                                <div class="text-xs text-gray-500 dark:text-gray-500 italic mt-2">No PDF generated yet. Click the button above to generate.</div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Others Card -->

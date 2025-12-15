@@ -39,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $instructorId = !empty($_POST['instructor_id']) ? intval($_POST['instructor_id']) : null;
     $location = trim($_POST['location'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $department = trim($_POST['department'] ?? 'Training');
+    $issuanceAuth = trim($_POST['issuance_auth'] ?? 'completion');
     $schedules = $_POST['schedules'] ?? [];
     $assignedUsers = $_POST['assigned_users'] ?? [];
     $assignedRoles = $_POST['assigned_roles'] ?? [];
@@ -91,8 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             
             // Insert class
-            $stmt = $db->prepare("INSERT INTO classes (name, duration, instructor_id, location, material_file, description, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')");
-            $stmt->execute([$name, $duration, $instructorId, $location, $materialFile, $description, $current_user['id']]);
+            $stmt = $db->prepare("INSERT INTO classes (name, duration, instructor_id, location, material_file, description, department, issuance_auth, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+            $stmt->execute([$name, $duration, $instructorId, $location, $materialFile, $description, $department, $issuanceAuth, $current_user['id']]);
             $classId = $db->lastInsertId();
             
             // Insert schedules
@@ -248,6 +250,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <?php endforeach; ?>
                                 </datalist>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Type a new location or select from existing ones</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Department
+                                </label>
+                                <select name="department" id="department" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="Training" <?php echo (isset($_POST['department']) && $_POST['department'] == 'Training') || !isset($_POST['department']) ? 'selected' : ''; ?>>Training</option>
+                                    <option value="Operation" <?php echo (isset($_POST['department']) && $_POST['department'] == 'Operation') ? 'selected' : ''; ?>>Operation</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Issuance Authority
+                                </label>
+                                <select name="issuance_auth" id="issuance_auth" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="completion" <?php echo (isset($_POST['issuance_auth']) && $_POST['issuance_auth'] == 'completion') || !isset($_POST['issuance_auth']) ? 'selected' : ''; ?>>Completion</option>
+                                    <option value="attendance" <?php echo (isset($_POST['issuance_auth']) && $_POST['issuance_auth'] == 'attendance') ? 'selected' : ''; ?>>Attendance</option>
+                                </select>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

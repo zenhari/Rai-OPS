@@ -2338,6 +2338,11 @@ function hasPageAccess($pagePath, $userRole = null) {
         $current_user = getCurrentUser();
         $userRole = $current_user['role_name'] ?? 'employee';
     }
+
+    // Super Admin always has access to all pages (hard bypass)
+    if ($userRole === 'super_admin') {
+        return true;
+    }
     
     $permission = getPagePermission($pagePath);
     if (!$permission) {
@@ -3020,6 +3025,25 @@ function checkPageAccessWithRedirect($pagePath) {
         exit();
     }
     
+    // Check maintenance mode first (before any other access checks)
+    $maintenanceMode = getMaintenanceMode();
+    if ($maintenanceMode['is_active']) {
+        $current_user = getCurrentUser();
+        $userRole = $current_user['role_name'] ?? 'employee';
+        
+        // Allow super_admin to access everything, redirect others to maintenance page
+        if ($userRole !== 'super_admin') {
+            // Allow access to maintenance page itself and login/logout
+            $allowedPaths = ['maintenance.php', 'login.php', 'logout.php'];
+            $currentPage = basename($pagePath);
+            
+            if (!in_array($currentPage, $allowedPaths) && $pagePath !== 'maintenance.php') {
+                header('Location: /maintenance.php');
+                exit();
+            }
+        }
+    }
+    
     $current_user = getCurrentUser();
     $hasAccess = hasPageAccessEnhanced($pagePath, $current_user['role_name'] ?? 'employee', $current_user['id']);
     
@@ -3027,6 +3051,93 @@ function checkPageAccessWithRedirect($pagePath) {
         $encodedPage = urlencode($pagePath);
         header("Location: /access_denied.php?page=$encodedPage");
         exit();
+    }
+    
+    return true;
+}
+
+// ==================== MAINTENANCE MODE FUNCTIONS ====================
+
+/**
+ * Get maintenance mode settings
+ */
+function getMaintenanceMode() {
+    try {
+        $pdo = getDBConnection();
+        $stmt = $pdo->query("SELECT * FROM maintenance_mode ORDER BY id DESC LIMIT 1");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$result) {
+            // Return default inactive state
+            return [
+                'id' => null,
+                'is_active' => 0,
+                'end_datetime' => null,
+                'created_at' => null,
+                'updated_at' => null
+            ];
+        }
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("Error getting maintenance mode: " . $e->getMessage());
+        return [
+            'id' => null,
+            'is_active' => 0,
+            'end_datetime' => null,
+            'created_at' => null,
+            'updated_at' => null
+        ];
+    }
+}
+
+/**
+ * Update maintenance mode settings
+ */
+function updateMaintenanceMode($isActive, $endDatetime = null) {
+    try {
+        $pdo = getDBConnection();
+        
+        // Check if record exists
+        $stmt = $pdo->query("SELECT id FROM maintenance_mode ORDER BY id DESC LIMIT 1");
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing) {
+            // Update existing record
+            $stmt = $pdo->prepare("UPDATE maintenance_mode SET is_active = ?, end_datetime = ? WHERE id = ?");
+            $stmt->execute([$isActive ? 1 : 0, $endDatetime, $existing['id']]);
+        } else {
+            // Insert new record
+            $stmt = $pdo->prepare("INSERT INTO maintenance_mode (is_active, end_datetime) VALUES (?, ?)");
+            $stmt->execute([$isActive ? 1 : 0, $endDatetime]);
+        }
+        
+        return true;
+    } catch (PDOException $e) {
+        error_log("Error updating maintenance mode: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Check if maintenance mode is active
+ */
+function isMaintenanceModeActive() {
+    $maintenanceMode = getMaintenanceMode();
+    if (!$maintenanceMode['is_active']) {
+        return false;
+    }
+    
+    // Check if end datetime has passed
+    if ($maintenanceMode['end_datetime']) {
+        $endTime = strtotime($maintenanceMode['end_datetime']);
+        $currentTime = time();
+        
+        if ($currentTime >= $endTime) {
+            // Maintenance period has ended, auto-disable
+            updateMaintenanceMode(false, null);
+            return false;
+        }
     }
     
     return true;
@@ -8127,12 +8238,18 @@ function getAvailablePilotsForDate($date) {
     try {
         $db = getDBConnection();
         
+        // Define valid cockpit roles
+        $validRoles = ['PIC', 'FO', 'TRE', 'TRI', 'SP', 'OBS', 'SIC', 'PICUS', 'NC', 'FD', 'SO'];
+        $rolePlaceholders = str_repeat('?,', count($validRoles) - 1) . '?';
+        
         // Get all unique crew member IDs from Crew1-Crew10 for the selected date
-        // Only include crew members with role "PIC" (Pilot In Command)
-        // Use f.id to ensure each flight is counted only once, even if it has multiple PICs
+        // Include crew members with any valid cockpit role (PIC, FO, TRE, TRI, SP, OBS, SIC, PICUS, NC, FD, SO)
+        // Use f.id to ensure each flight is counted only once
         $stmt = $db->prepare("
             SELECT 
                 f.id as flight_id,
+                f.FirstName,
+                f.LastName,
                 f.Crew1, f.Crew2, f.Crew3, f.Crew4, f.Crew5,
                 f.Crew6, f.Crew7, f.Crew8, f.Crew9, f.Crew10,
                 f.Crew1_role, f.Crew2_role, f.Crew3_role, f.Crew4_role, f.Crew5_role,
@@ -8144,41 +8261,54 @@ function getAvailablePilotsForDate($date) {
             AND f.TaskStart IS NOT NULL
             AND f.TaskEnd IS NOT NULL
             AND (
-                (f.Crew1 IS NOT NULL AND f.Crew1_role = 'PIC') OR
-                (f.Crew2 IS NOT NULL AND f.Crew2_role = 'PIC') OR
-                (f.Crew3 IS NOT NULL AND f.Crew3_role = 'PIC') OR
-                (f.Crew4 IS NOT NULL AND f.Crew4_role = 'PIC') OR
-                (f.Crew5 IS NOT NULL AND f.Crew5_role = 'PIC') OR
-                (f.Crew6 IS NOT NULL AND f.Crew6_role = 'PIC') OR
-                (f.Crew7 IS NOT NULL AND f.Crew7_role = 'PIC') OR
-                (f.Crew8 IS NOT NULL AND f.Crew8_role = 'PIC') OR
-                (f.Crew9 IS NOT NULL AND f.Crew9_role = 'PIC') OR
-                (f.Crew10 IS NOT NULL AND f.Crew10_role = 'PIC')
+                (f.FirstName IS NOT NULL AND f.FirstName != '' AND f.LastName IS NOT NULL AND f.LastName != '') OR
+                (f.Crew1 IS NOT NULL AND f.Crew1_role IN ($rolePlaceholders)) OR
+                (f.Crew2 IS NOT NULL AND f.Crew2_role IN ($rolePlaceholders)) OR
+                (f.Crew3 IS NOT NULL AND f.Crew3_role IN ($rolePlaceholders)) OR
+                (f.Crew4 IS NOT NULL AND f.Crew4_role IN ($rolePlaceholders)) OR
+                (f.Crew5 IS NOT NULL AND f.Crew5_role IN ($rolePlaceholders)) OR
+                (f.Crew6 IS NOT NULL AND f.Crew6_role IN ($rolePlaceholders)) OR
+                (f.Crew7 IS NOT NULL AND f.Crew7_role IN ($rolePlaceholders)) OR
+                (f.Crew8 IS NOT NULL AND f.Crew8_role IN ($rolePlaceholders)) OR
+                (f.Crew9 IS NOT NULL AND f.Crew9_role IN ($rolePlaceholders)) OR
+                (f.Crew10 IS NOT NULL AND f.Crew10_role IN ($rolePlaceholders))
             )
             GROUP BY f.id
         ");
         
-        $stmt->execute([$date]);
+        // Execute with role parameters (repeat for each crew position check)
+        $roleParams = array_merge(
+            [$date],
+            $validRoles, $validRoles, $validRoles, $validRoles, $validRoles,
+            $validRoles, $validRoles, $validRoles, $validRoles, $validRoles
+        );
+        $stmt->execute($roleParams);
         $flights = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         if (empty($flights)) {
             return [];
         }
         
-        // Collect all unique crew IDs with PIC role and count flights
+        // Collect all unique crew IDs with valid cockpit roles and count flights
+        // Also include pilots from FirstName/LastName fields
         // Use a set to track which crew members are in each flight (to avoid double counting)
         $crewData = [];
+        $pilotNames = []; // Track pilots by name (for FirstName/LastName)
+        
         foreach ($flights as $flight) {
             // Track unique crew IDs in this flight
             $flightCrewIds = [];
+            $flightPilotNames = [];
+            
+            // First, check Crew1-Crew10 fields
             for ($i = 1; $i <= 10; $i++) {
                 $crewField = "Crew{$i}";
                 $crewRoleField = "Crew{$i}_role";
                 $crewId = $flight[$crewField] ?? null;
-                $crewRole = $flight[$crewRoleField] ?? '';
+                $crewRole = strtoupper(trim($flight[$crewRoleField] ?? ''));
                 
-                // Only include crew members with role "PIC"
-                if (!empty($crewId) && strtoupper(trim($crewRole)) === 'PIC' && !in_array($crewId, $flightCrewIds)) {
+                // Include crew members with any valid cockpit role
+                if (!empty($crewId) && in_array($crewRole, $validRoles) && !in_array($crewId, $flightCrewIds)) {
                     $flightCrewIds[] = $crewId;
                     
                     if (!isset($crewData[$crewId])) {
@@ -8196,35 +8326,146 @@ function getAvailablePilotsForDate($date) {
                     $crewData[$crewId]['total_air_time'] += ($flight['air_time_min'] ?? 0);
                 }
             }
+            
+            // Also check FirstName/LastName fields
+            $firstName = trim($flight['FirstName'] ?? '');
+            $lastName = trim($flight['LastName'] ?? '');
+            if (!empty($firstName) && !empty($lastName)) {
+                $pilotFullName = trim($firstName . ' ' . $lastName);
+                if (!empty($pilotFullName) && !in_array($pilotFullName, $flightPilotNames)) {
+                    $flightPilotNames[] = $pilotFullName;
+                    
+                    // Use name as key (we'll try to match with users table later)
+                    if (!isset($pilotNames[$pilotFullName])) {
+                        $pilotNames[$pilotFullName] = [
+                            'name' => $pilotFullName,
+                            'flight_count' => 0,
+                            'total_block_time' => 0,
+                            'total_air_time' => 0
+                        ];
+                    }
+                    
+                    // Count this flight only once per pilot name
+                    $pilotNames[$pilotFullName]['flight_count']++;
+                    $pilotNames[$pilotFullName]['total_block_time'] += ($flight['block_time_min'] ?? 0);
+                    $pilotNames[$pilotFullName]['total_air_time'] += ($flight['air_time_min'] ?? 0);
+                }
+            }
         }
         
-        if (empty($crewData)) {
-            return [];
+        // Get user details from users table for crew IDs
+        $usersById = [];
+        if (!empty($crewData)) {
+            $crewIds = array_keys($crewData);
+            $placeholders = str_repeat('?,', count($crewIds) - 1) . '?';
+            $stmt = $db->prepare("
+                SELECT id, first_name, last_name
+                FROM users
+                WHERE id IN ($placeholders)
+                AND status = 'active'
+            ");
+            $stmt->execute($crewIds);
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($users as $user) {
+                $usersById[$user['id']] = $user;
+            }
         }
         
-        // Get user details from users table
-        $crewIds = array_keys($crewData);
-        $placeholders = str_repeat('?,', count($crewIds) - 1) . '?';
-        $stmt = $db->prepare("
-            SELECT id, first_name, last_name
-            FROM users
-            WHERE id IN ($placeholders)
-            AND status = 'active'
-        ");
-        $stmt->execute($crewIds);
-        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Try to match pilot names from FirstName/LastName with users table
+        $matchedPilotNames = [];
+        if (!empty($pilotNames)) {
+            $pilotNameList = array_keys($pilotNames);
+            foreach ($pilotNameList as $pilotName) {
+                // Try to find matching user by name
+                $nameParts = explode(' ', $pilotName, 2);
+                if (count($nameParts) == 2) {
+                    $stmt = $db->prepare("
+                        SELECT id, first_name, last_name
+                        FROM users
+                        WHERE (first_name LIKE ? AND last_name LIKE ?)
+                        OR CONCAT(first_name, ' ', last_name) LIKE ?
+                        AND status = 'active'
+                        LIMIT 1
+                    ");
+                    $firstNamePattern = '%' . $nameParts[0] . '%';
+                    $lastNamePattern = '%' . $nameParts[1] . '%';
+                    $fullNamePattern = '%' . $pilotName . '%';
+                    $stmt->execute([$firstNamePattern, $lastNamePattern, $fullNamePattern]);
+                    $matchedUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($matchedUser) {
+                        // If user found and not already in crewData, add it
+                        $userId = $matchedUser['id'];
+                        if (!isset($crewData[$userId])) {
+                            $crewData[$userId] = [
+                                'id' => $userId,
+                                'flight_count' => 0,
+                                'total_block_time' => 0,
+                                'total_air_time' => 0
+                            ];
+                        }
+                        // Add flight counts from pilotNames
+                        $crewData[$userId]['flight_count'] += $pilotNames[$pilotName]['flight_count'];
+                        $crewData[$userId]['total_block_time'] += $pilotNames[$pilotName]['total_block_time'];
+                        $crewData[$userId]['total_air_time'] += $pilotNames[$pilotName]['total_air_time'];
+                        $matchedPilotNames[] = $pilotName;
+                    }
+                }
+            }
+        }
+        
+        // Get updated user details for all crew IDs (including newly matched ones)
+        if (!empty($crewData)) {
+            $crewIds = array_keys($crewData);
+            $placeholders = str_repeat('?,', count($crewIds) - 1) . '?';
+            $stmt = $db->prepare("
+                SELECT id, first_name, last_name
+                FROM users
+                WHERE id IN ($placeholders)
+                AND status = 'active'
+            ");
+            $stmt->execute($crewIds);
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($users as $user) {
+                $usersById[$user['id']] = $user;
+            }
+        }
         
         // Combine user data with flight statistics
         $pilots = [];
-        foreach ($users as $user) {
-            $crewId = $user['id'];
-            if (isset($crewData[$crewId])) {
+        foreach ($usersById as $userId => $user) {
+            if (isset($crewData[$userId])) {
                 $pilots[] = [
                     'pilot_name' => trim($user['first_name'] . ' ' . $user['last_name']),
-                    'flight_count' => $crewData[$crewId]['flight_count'],
-                    'total_block_time' => $crewData[$crewId]['total_block_time'],
-                    'total_air_time' => $crewData[$crewId]['total_air_time']
+                    'flight_count' => $crewData[$userId]['flight_count'],
+                    'total_block_time' => $crewData[$userId]['total_block_time'],
+                    'total_air_time' => $crewData[$userId]['total_air_time']
                 ];
+            }
+        }
+        
+        // Add pilots from FirstName/LastName that couldn't be matched to users table
+        foreach ($pilotNames as $pilotName => $pilotData) {
+            if (!in_array($pilotName, $matchedPilotNames)) {
+                // Check if this name is already in pilots list (to avoid duplicates)
+                $alreadyExists = false;
+                foreach ($pilots as $existingPilot) {
+                    if (strcasecmp($existingPilot['pilot_name'], $pilotName) === 0) {
+                        $alreadyExists = true;
+                        break;
+                    }
+                }
+                
+                if (!$alreadyExists) {
+                    $pilots[] = [
+                        'pilot_name' => $pilotName,
+                        'flight_count' => $pilotData['flight_count'],
+                        'total_block_time' => $pilotData['total_block_time'],
+                        'total_air_time' => $pilotData['total_air_time']
+                    ];
+                }
             }
         }
         

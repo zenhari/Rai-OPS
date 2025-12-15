@@ -19,6 +19,7 @@ if ($classId <= 0) {
 
 // Get class data with instructor info
 $stmt = $db->prepare("SELECT c.id, c.name, c.duration, c.instructor_id, c.location, c.material_file, c.description, c.status, c.created_by, c.created_at, c.updated_at,
+                     c.department, c.issuance_auth,
                      CONCAT(u.first_name, ' ', u.last_name) as instructor_name,
                      u.first_name as instructor_first_name,
                      u.last_name as instructor_last_name
@@ -225,6 +226,29 @@ if (empty($duration) && $startDate && $endDate) {
 // Format dates
 $formattedStartDate = $startDate ? date('Y-m-d', strtotime($startDate)) : '';
 $formattedEndDate = $endDate ? date('Y-m-d', strtotime($endDate)) : '';
+
+// Determine department, issuance type and corresponding certificate template
+$department = strtolower($class['department'] ?? 'training');
+$issuanceAuth = strtolower($class['issuance_auth'] ?? 'completion');
+
+// Human readable labels
+$departmentLabel = $department === 'operation' ? 'Operation' : 'Training';
+$issuanceLabel = $issuanceAuth === 'attendance' ? 'Attendance' : 'Completion';
+
+// Choose template file based on department and issuance type
+$certificateTemplateFile = 'training_completion.jpg';
+if ($department === 'training' && $issuanceAuth === 'attendance') {
+    $certificateTemplateFile = 'training_attendance.jpg';
+} elseif ($department === 'training' && $issuanceAuth === 'completion') {
+    $certificateTemplateFile = 'training_completion.jpg';
+} elseif ($department === 'operation' && $issuanceAuth === 'completion') {
+    $certificateTemplateFile = 'operation_completion.jpg';
+} elseif ($department === 'operation' && $issuanceAuth === 'attendance') {
+    $certificateTemplateFile = 'operation_attendance.jpg';
+}
+
+// Public URL for template preview
+$certificateTemplateUrl = '/admin/training/certificate/templates/' . $certificateTemplateFile;
 ?>
 
 <!DOCTYPE html>
@@ -1712,6 +1736,23 @@ $formattedEndDate = $endDate ? date('Y-m-d', strtotime($endDate)) : '';
                     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         End Date: <strong class="text-gray-900 dark:text-white"><?php echo htmlspecialchars($formattedEndDate); ?></strong>
                     </p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Department: <strong class="text-gray-900 dark:text-white"><?php echo htmlspecialchars($departmentLabel); ?></strong>
+                    </p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Certificate Type: <strong class="text-gray-900 dark:text-white"><?php echo htmlspecialchars($issuanceLabel); ?></strong>
+                    </p>
+                    <div class="mt-3">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Selected template:
+                            <span class="text-gray-900 dark:text-white"><?php echo htmlspecialchars($certificateTemplateFile); ?></span>
+                        </p>
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-md p-2 bg-gray-50 dark:bg-gray-900/40">
+                            <img src="<?php echo htmlspecialchars($certificateTemplateUrl); ?>"
+                                 alt="Certificate template preview"
+                                 class="w-full h-auto rounded">
+                        </div>
+                    </div>
                 </div>
                 <form id="certificateForm" class="space-y-4">
                     <input type="hidden" id="modalUserId" name="user_id">

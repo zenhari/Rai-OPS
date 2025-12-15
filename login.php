@@ -7,6 +7,21 @@ if (isLoggedIn()) {
     exit();
 }
 
+// Check maintenance mode
+$maintenanceActive = false;
+$endDateTime = null;
+try {
+    $pdo = getDBConnection();
+    $stmt = $pdo->query("SELECT is_active, end_datetime FROM maintenance_mode ORDER BY id DESC LIMIT 1");
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($result) {
+        $maintenanceActive = (bool)$result['is_active'];
+        $endDateTime = $result['end_datetime'];
+    }
+} catch (PDOException $e) {
+    // Ignore database errors for maintenance check
+}
+
 $error_message = '';
 $success_message = '';
 
@@ -72,6 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <?php echo COMPANY_NAME; ?> Fleet Management System
                 </p>
             </div>
+
+            <!-- Maintenance Message -->
+            
 
             <!-- Login Form -->
             <form class="mt-8 space-y-6" method="POST" action="">

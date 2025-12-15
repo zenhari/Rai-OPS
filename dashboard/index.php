@@ -8,6 +8,14 @@ if (!isLoggedIn()) {
 }
 
 $user = getCurrentUser();
+$userRole = $user['role_name'] ?? 'employee';
+
+// Check maintenance mode - redirect non-super_admin users
+$maintenanceMode = getMaintenanceMode();
+if ($maintenanceMode['is_active'] && $userRole !== 'super_admin') {
+    header('Location: /maintenance.php');
+    exit();
+}
 
 // Get aircraft data for dashboard
 $aircraft = getAllAircraft();

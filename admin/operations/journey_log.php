@@ -814,7 +814,6 @@ function generatePDFContent($startDate, $endDate, $pilotName) {
                                             FROM flights f
                                             WHERE {$whereClause}
                                             ORDER BY f.TaskStart ASC
-                                            LIMIT 20
                                         ");
                                         $stmt->execute($params);
                                         $allFlights = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -891,8 +890,8 @@ function generatePDFContent($startDate, $endDate, $pilotName) {
                                             }
                                         }
                                         
-                                        // Ensure minimum 1 row and maximum 20 rows
-                                        $rowCount = max(1, min(count($allFlights), 20));
+                                        // Ensure minimum 1 row, no maximum limit
+                                        $rowCount = max(1, count($allFlights));
                                         
                                         for ($i = 1; $i <= $rowCount; $i++): 
                                             $flight = isset($allFlights[$i-1]) ? $allFlights[$i-1] : null;

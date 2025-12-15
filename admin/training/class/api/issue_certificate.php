@@ -147,9 +147,10 @@ try {
         exit();
     }
     
-    // Get class information
-    $stmt = $db->prepare("SELECT c.id, c.name, c.duration, 
-                                 MIN(cs.start_date) as start_date, 
+    // Get class information (including department & issuance_auth for template selection)
+    $stmt = $db->prepare("SELECT c.id, c.name, c.duration,
+                                 c.department, c.issuance_auth,
+                                 MIN(cs.start_date) as start_date,
                                  MAX(cs.end_date) as end_date
                           FROM classes c
                           LEFT JOIN class_schedules cs ON c.id = cs.class_id
@@ -163,6 +164,18 @@ try {
         echo json_encode(['success' => false, 'error' => 'Class not found']);
         ob_end_flush();
         exit();
+    }
+    
+    // Determine department & issuance_auth for this class (used for DB and template)
+    $department = strtolower($class['department'] ?? 'training');
+    $issuanceAuth = strtolower($class['issuance_auth'] ?? 'completion');
+
+    // Normalize values
+    if (!in_array($department, ['training', 'operation'], true)) {
+        $department = 'training';
+    }
+    if (!in_array($issuanceAuth, ['attendance', 'completion'], true)) {
+        $issuanceAuth = 'completion';
     }
     
     // Prepare certificate data
@@ -273,8 +286,8 @@ try {
             $end_date ?: null,
             $issueDate,
             $expireDate ?: null,
-            null, // certificate_type
-            'completion' // issuance_auth
+            null,          // certificate_type (reserved for future use)
+            $issuanceAuth  // issuance_auth from class (NOT NULL)
         ]);
         
         $certificateId = $db->lastInsertId();
@@ -345,10 +358,22 @@ try {
             throw new Exception('Failed to save QR code image');
         }
         
-        // Determine template (default to training_completion)
+        // Determine template based on department & issuance_auth
         // Go up from admin/training/class/api to admin/training/certificate/templates
         $baseDir = dirname(dirname(dirname(dirname(__DIR__)))); // Go to root
-        $templateFile = $baseDir . '/admin/training/certificate/templates/training_completion.jpg';
+
+        $templateFilename = 'training_completion.jpg';
+        if ($department === 'training' && $issuanceAuth === 'attendance') {
+            $templateFilename = 'training_attendance.jpg';
+        } elseif ($department === 'training' && $issuanceAuth === 'completion') {
+            $templateFilename = 'training_completion.jpg';
+        } elseif ($department === 'operation' && $issuanceAuth === 'completion') {
+            $templateFilename = 'operation_completion.jpg';
+        } elseif ($department === 'operation' && $issuanceAuth === 'attendance') {
+            $templateFilename = 'operation_attendance.jpg';
+        }
+
+        $templateFile = $baseDir . '/admin/training/certificate/templates/' . $templateFilename;
         
         // Normalize path
         $templateFile = str_replace(['\\', '//'], '/', $templateFile);

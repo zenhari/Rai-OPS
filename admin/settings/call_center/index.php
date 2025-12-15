@@ -131,6 +131,80 @@ function formatDateTime($dateTimeString) {
     }
 }
 
+// Helper function to get Caller display (use CallerIDNum if Caller is company number)
+function getCallerDisplay($call) {
+    $caller = trim($call['Caller'] ?? '');
+    $callerIDNum = trim($call['CallerIDNum'] ?? '');
+    
+    // If Caller is company number, return CallerIDNum instead
+    if ($caller === '+982192004904') {
+        return !empty($callerIDNum) && $callerIDNum !== 'N/A' && $callerIDNum !== '<unknown>' 
+            ? $callerIDNum 
+            : $caller;
+    }
+    
+    return $caller ?: 'N/A';
+}
+
+// Helper function to check if a number is 4 digits
+function isFourDigits($number) {
+    if (empty($number)) {
+        return false;
+    }
+    $clean = preg_replace('/[^\d]/', '', $number);
+    return strlen($clean) === 4;
+}
+
+// Helper function to get Caller ID Name display
+function getCallerIDNameDisplay($call) {
+    $caller = trim($call['Caller'] ?? '');
+    $callee = trim($call['Callee'] ?? '');
+    $callerIDName = trim($call['caller_id_name'] ?? '');
+    $connectedLineName = trim($call['ConnectedLineName'] ?? '');
+    
+    // If Caller and Callee are different and both are 4 digits, combine Caller ID Name and ConnectedLineName
+    if ($caller !== $callee && !empty($caller) && !empty($callee) && isFourDigits($caller) && isFourDigits($callee)) {
+        $parts = [];
+        if (!empty($callerIDName) && $callerIDName !== 'N/A' && $callerIDName !== '<unknown>') {
+            $parts[] = $callerIDName;
+        }
+        if (!empty($connectedLineName) && $connectedLineName !== 'N/A' && $connectedLineName !== '<unknown>') {
+            $parts[] = $connectedLineName;
+        }
+        if (!empty($parts)) {
+            return implode(', ', $parts);
+        }
+    }
+    
+    // Otherwise return Caller ID Name as normal
+    return !empty($callerIDName) && $callerIDName !== 'N/A' && $callerIDName !== '<unknown>' 
+        ? $callerIDName 
+        : 'N/A';
+}
+
+// Helper function to get Callee or ConnectedLineNum (whichever is available)
+function getCalleeDisplay($call) {
+    $caller = trim($call['Caller'] ?? '');
+    $callee = trim($call['Callee'] ?? '');
+    $connectedLineNum = trim($call['ConnectedLineNum'] ?? '');
+    
+    // If Caller equals Callee, return ConnectedLineNum instead
+    if ($caller === $callee && !empty($caller) && !empty($callee)) {
+        if (!empty($connectedLineNum) && $connectedLineNum !== 'N/A' && $connectedLineNum !== '<unknown>') {
+            return $connectedLineNum;
+        }
+    }
+    
+    // Return Callee if not empty, otherwise return ConnectedLineNum
+    if (!empty($callee) && $callee !== 'N/A' && $callee !== '<unknown>') {
+        return $callee;
+    } elseif (!empty($connectedLineNum) && $connectedLineNum !== 'N/A' && $connectedLineNum !== '<unknown>') {
+        return $connectedLineNum;
+    } else {
+        return 'N/A';
+    }
+}
+
 // Get status badge color
 function getStatusBadgeColor($status) {
     switch (strtolower($status)) {
@@ -359,7 +433,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
     }
     
     // Sort keys to have common fields first
-    $commonFields = ['StartTime', 'CallType', 'Caller', 'caller_id_name', 'Callee', 'Status', 'Duration', 'Channel'];
+    $commonFields = ['StartTime', 'CallType', 'Caller', 'caller_id_name', 'Callee', 'Status', 'Duration'];
     $orderedKeys = [];
     foreach ($commonFields as $field) {
         if (in_array($field, $allKeys)) {
@@ -391,6 +465,37 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
             // Format specific fields
             if ($key === 'StartTime' && !empty($value)) {
                 $value = formatDateTime($value);
+            } elseif ($key === 'Caller') {
+                // If Caller is company number, use CallerIDNum instead
+                $caller = trim($call['Caller'] ?? '');
+                if ($caller === '+982192004904') {
+                    $callerIDNum = trim($call['CallerIDNum'] ?? '');
+                    $value = (!empty($callerIDNum) && $callerIDNum !== 'N/A' && $callerIDNum !== '<unknown>') 
+                        ? $callerIDNum 
+                        : $caller;
+                } else {
+                    $value = $caller ?: '';
+                }
+            } elseif ($key === 'caller_id_name') {
+                // Use the helper function to get Caller ID Name display
+                $value = getCallerIDNameDisplay($call);
+            } elseif ($key === 'Callee') {
+                // If Caller equals Callee, use ConnectedLineNum instead
+                $caller = trim($call['Caller'] ?? '');
+                $callee = trim($call['Callee'] ?? '');
+                $connectedLineNum = trim($call['ConnectedLineNum'] ?? '');
+                
+                if ($caller === $callee && !empty($caller) && !empty($callee)) {
+                    $value = (!empty($connectedLineNum) && $connectedLineNum !== 'N/A' && $connectedLineNum !== '<unknown>') 
+                        ? $connectedLineNum 
+                        : $callee;
+                } else {
+                    $value = (!empty($callee) && $callee !== 'N/A' && $callee !== '<unknown>') 
+                        ? $callee 
+                        : ((!empty($connectedLineNum) && $connectedLineNum !== 'N/A' && $connectedLineNum !== '<unknown>') 
+                            ? $connectedLineNum 
+                            : '');
+                }
             } elseif ($key === 'Duration' && is_numeric($value)) {
                 // Keep numeric value for Duration
                 $value = $value;
@@ -613,6 +718,76 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
                         <p class="text-gray-500 dark:text-gray-400">No calls found.</p>
                     </div>
                     <?php else: ?>
+                    <?php
+                    // Define priority order for important fields
+                    $priorityFields = [
+                        'CallerIDNum',
+                        'ConnectedLineNum', 
+                        'ConnectedLineName',
+                        'HangupCause',
+                        'HangupCauseCode',
+                        'LastApplication',
+                        'LastData',
+                        'Context',
+                        'EventTime',
+                        'Disposition',
+                        'Language',
+                        'Uniqueid',
+                        'Linkedid',
+                        'Exten',
+                        'Priority',
+                        'AMAFlags',
+                        'AccountCode',
+                        'UserField'
+                    ];
+                    
+                    // Get all available fields from calls (excluding already displayed ones)
+                    $excludedKeys = ['StartTime', 'CallType', 'Status', 'Duration', 'Caller', 'caller_id_name', 'Callee', 'Channel'];
+                    $allFields = [];
+                    $fieldCounts = []; // Count how many calls have each field with non-empty values
+                    
+                    if (!empty($calls)) {
+                        foreach ($calls as $call) {
+                            foreach (array_keys($call) as $key) {
+                                if (!in_array($key, $excludedKeys)) {
+                                    $value = $call[$key] ?? '';
+                                    // Count fields that have actual values (not empty, not N/A, not <unknown>)
+                                    if (!empty($value) && $value !== 'N/A' && $value !== '<unknown>') {
+                                        if (!isset($fieldCounts[$key])) {
+                                            $fieldCounts[$key] = 0;
+                                        }
+                                        $fieldCounts[$key]++;
+                                    }
+                                    if (!in_array($key, $allFields)) {
+                                        $allFields[] = $key;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Filter fields: only show fields that have values in at least 10% of calls
+                    $minCount = max(1, floor(count($calls) * 0.1));
+                    $filteredFields = [];
+                    
+                    // First add priority fields that meet the threshold
+                    foreach ($priorityFields as $field) {
+                        if (in_array($field, $allFields) && isset($fieldCounts[$field]) && $fieldCounts[$field] >= $minCount) {
+                            $filteredFields[] = $field;
+                        }
+                    }
+                    
+                    // Then add other fields that meet the threshold
+                    foreach ($allFields as $field) {
+                        if (!in_array($field, $priorityFields) && !in_array($field, $filteredFields)) {
+                            if (isset($fieldCounts[$field]) && $fieldCounts[$field] >= $minCount) {
+                                $filteredFields[] = $field;
+                            }
+                        }
+                    }
+                    
+                    $allFields = $filteredFields;
+                    ?>
                     <div class="overflow-x-auto w-full">
                         <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
@@ -620,11 +795,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start Time</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Call Type</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Caller</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Caller ID Name</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Callee</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Channel</th>
+                                    <?php foreach ($allFields as $field): ?>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $field))); ?>
+                                    </th>
+                                    <?php endforeach; ?>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
@@ -640,25 +815,27 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                        <?php echo htmlspecialchars($call['Caller'] ?? 'N/A'); ?>
+                                        <?php echo htmlspecialchars(getCallerDisplay($call)); ?>
                                     </td>
+                                    <?php foreach ($allFields as $field): ?>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                        <?php echo htmlspecialchars($call['caller_id_name'] ?? 'N/A'); ?>
+                                        <?php 
+                                        $value = $call[$field] ?? '';
+                                        $displayValue = '';
+                                        
+                                        if (is_array($value) || is_object($value)) {
+                                            $displayValue = json_encode($value);
+                                        } else {
+                                            $displayValue = trim($value);
+                                            // Don't show empty, N/A, or <unknown> values
+                                            if (empty($displayValue) || $displayValue === 'N/A' || $displayValue === '<unknown>') {
+                                                $displayValue = '-';
+                                            }
+                                        }
+                                        echo htmlspecialchars($displayValue);
+                                        ?>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                        <?php echo htmlspecialchars($call['Callee'] ?? 'N/A'); ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php echo getStatusBadgeColor($call['Status'] ?? ''); ?>">
-                                            <?php echo htmlspecialchars($call['Status'] ?? 'N/A'); ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                        <?php echo formatDuration($call['Duration'] ?? 0); ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        <?php echo htmlspecialchars($call['Channel'] ?? 'N/A'); ?>
-                                    </td>
+                                    <?php endforeach; ?>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <button onclick="showCallDetail(this)" 
                                                 data-call='<?php echo htmlspecialchars(json_encode($call), ENT_QUOTES, 'UTF-8'); ?>'
@@ -992,7 +1169,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
             html += '<label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Caller</label>';
             html += '<div class="mt-1 flex items-center space-x-2">';
             html += '<i class="fas fa-user-outgoing text-blue-500 text-sm"></i>';
-            html += '<p class="text-sm font-semibold text-gray-900 dark:text-white">' + (call.Caller || 'N/A') + '</p>';
+            const callerDisplay = (call.Caller === '+982192004904' && call.CallerIDNum && call.CallerIDNum.trim() && call.CallerIDNum !== 'N/A' && call.CallerIDNum !== '<unknown>') 
+                ? call.CallerIDNum 
+                : (call.Caller || 'N/A');
+            html += '<p class="text-sm font-semibold text-gray-900 dark:text-white">' + callerDisplay + '</p>';
             html += '</div>';
             html += '</div>';
             
@@ -1000,7 +1180,35 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
             html += '<label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Caller ID Name</label>';
             html += '<div class="mt-1 flex items-center space-x-2">';
             html += '<i class="fas fa-id-card text-gray-400 text-sm"></i>';
-            html += '<p class="text-sm text-gray-900 dark:text-white">' + (call.caller_id_name || 'N/A') + '</p>';
+            // Helper function to check if number is 4 digits
+            function isFourDigitsJS(num) {
+                if (!num) return false;
+                const clean = (num || '').replace(/[^\d]/g, '');
+                return clean.length === 4;
+            }
+            
+            // Check conditions for Caller ID Name display
+            const callerForID = (call.Caller || '').trim();
+            const calleeForID = (call.Callee || '').trim();
+            const isCaller4DigitsForID = isFourDigitsJS(callerForID);
+            const isCallee4DigitsForID = isFourDigitsJS(calleeForID);
+            
+            let callerIDNameDisplay = call.caller_id_name || 'N/A';
+            
+            // If Caller and Callee are different and both are 4 digits, combine Caller ID Name and ConnectedLineName
+            if (callerForID !== calleeForID && callerForID && calleeForID && isCaller4DigitsForID && isCallee4DigitsForID) {
+                const parts = [];
+                if (call.caller_id_name && call.caller_id_name.trim() && call.caller_id_name !== 'N/A' && call.caller_id_name !== '<unknown>') {
+                    parts.push(call.caller_id_name);
+                }
+                if (call.ConnectedLineName && call.ConnectedLineName.trim() && call.ConnectedLineName !== 'N/A' && call.ConnectedLineName !== '<unknown>') {
+                    parts.push(call.ConnectedLineName);
+                }
+                if (parts.length > 0) {
+                    callerIDNameDisplay = parts.join(', ');
+                }
+            }
+            html += '<p class="text-sm text-gray-900 dark:text-white">' + callerIDNameDisplay + '</p>';
             html += '</div>';
             html += '</div>';
             
@@ -1008,7 +1216,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
             html += '<label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Callee</label>';
             html += '<div class="mt-1 flex items-center space-x-2">';
             html += '<i class="fas fa-user-incoming text-green-500 text-sm"></i>';
-            html += '<p class="text-sm font-semibold text-gray-900 dark:text-white">' + (call.Callee || 'N/A') + '</p>';
+            // If Caller equals Callee, use ConnectedLineNum instead
+            let callee;
+            if (call.Caller === call.Callee && call.Caller && call.Callee) {
+                callee = (call.ConnectedLineNum && call.ConnectedLineNum.trim() && call.ConnectedLineNum !== 'N/A' && call.ConnectedLineNum !== '<unknown>')
+                    ? call.ConnectedLineNum
+                    : (call.Callee && call.Callee.trim() && call.Callee !== 'N/A' && call.Callee !== '<unknown>')
+                        ? call.Callee
+                        : 'N/A';
+            } else {
+                callee = (call.Callee && call.Callee.trim() && call.Callee !== 'N/A' && call.Callee !== '<unknown>') 
+                    ? call.Callee 
+                    : (call.ConnectedLineNum && call.ConnectedLineNum.trim() && call.ConnectedLineNum !== 'N/A' && call.ConnectedLineNum !== '<unknown>')
+                        ? call.ConnectedLineNum
+                        : 'N/A';
+            }
+            html += '<p class="text-sm font-semibold text-gray-900 dark:text-white">' + callee + '</p>';
             html += '</div>';
             html += '</div>';
             

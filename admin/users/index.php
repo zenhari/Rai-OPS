@@ -5,6 +5,7 @@ require_once '../../config.php';
 checkPageAccessWithRedirect('admin/users/index.php');
 
 $current_user = getCurrentUser();
+$isSuperAdmin = ($current_user['role_name'] ?? '') === 'super_admin';
 
 // Handle search and pagination
 $search = [
@@ -63,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // Get role counts for current page
 $role_counts = [];
 foreach ($users as $user) {
+    // Skip counting super_admin for non-super-admin viewers
+    if (!$isSuperAdmin && (($user['role_name'] ?? '') === 'super_admin')) {
+        continue;
+    }
     $role = $user['role_display_name'] ?? 'Employee'; // Default to 'Employee' if role is null
     $role_counts[$role] = ($role_counts[$role] ?? 0) + 1;
 }
@@ -185,6 +190,12 @@ $administrator_count = getUsersCount(array_merge($search, ['role' => 'administra
                                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
                                         <option value="">All Roles</option>
                                         <?php foreach ($available_roles as $role): ?>
+                                            <?php
+                                            // Hide super_admin and admin from role filter for non-super-admins
+                                            if (!$isSuperAdmin && in_array(strtolower($role), ['super_admin', 'admin'], true)) {
+                                                continue;
+                                            }
+                                            ?>
                                             <option value="<?php echo htmlspecialchars($role); ?>" 
                                                     <?php echo ($search['role'] == $role) ? 'selected' : ''; ?>>
                                                 <?php echo htmlspecialchars(ucfirst($role)); ?>
@@ -348,6 +359,12 @@ $administrator_count = getUsersCount(array_merge($search, ['role' => 'administra
                             </thead>
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php foreach ($users as $user): ?>
+                                    <?php
+                                    // Hide Super Admin user row from non-super-admins
+                                    if (!$isSuperAdmin && (($user['role_name'] ?? '') === 'super_admin')) {
+                                        continue;
+                                    }
+                                    ?>
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">

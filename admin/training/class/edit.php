@@ -78,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $instructorId = !empty($_POST['instructor_id']) ? intval($_POST['instructor_id']) : null;
     $location = trim($_POST['location'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $department = trim($_POST['department'] ?? 'Training');
+    $issuanceAuth = trim($_POST['issuance_auth'] ?? 'completion');
     $status = $_POST['status'] ?? 'active';
     $schedules = $_POST['schedules'] ?? [];
     $assignedUsers = $_POST['assigned_users'] ?? [];
@@ -139,8 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             
             // Update class
-            $stmt = $db->prepare("UPDATE classes SET name = ?, duration = ?, instructor_id = ?, location = ?, material_file = ?, description = ?, status = ? WHERE id = ?");
-            $stmt->execute([$name, $duration, $instructorId, $location, $materialFile, $description, $status, $classId]);
+            $stmt = $db->prepare("UPDATE classes SET name = ?, duration = ?, instructor_id = ?, location = ?, material_file = ?, description = ?, department = ?, issuance_auth = ?, status = ? WHERE id = ?");
+            $stmt->execute([$name, $duration, $instructorId, $location, $materialFile, $description, $department, $issuanceAuth, $status, $classId]);
             
             // Delete existing schedules
             $stmt = $db->prepare("DELETE FROM class_schedules WHERE class_id = ?");
@@ -187,6 +189,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($oldClassData['duration'] != $duration) $changes[] = ['field' => 'duration', 'old' => $oldClassData['duration'], 'new' => $duration];
             if ($oldClassData['instructor_id'] != $instructorId) $changes[] = ['field' => 'instructor_id', 'old' => $oldClassData['instructor_id'], 'new' => $instructorId];
             if ($oldClassData['location'] != $location) $changes[] = ['field' => 'location', 'old' => $oldClassData['location'], 'new' => $location];
+            if (($oldClassData['department'] ?? 'Training') != $department) $changes[] = ['field' => 'department', 'old' => $oldClassData['department'] ?? 'Training', 'new' => $department];
+            if (($oldClassData['issuance_auth'] ?? 'completion') != $issuanceAuth) $changes[] = ['field' => 'issuance_auth', 'old' => $oldClassData['issuance_auth'] ?? 'completion', 'new' => $issuanceAuth];
             if ($oldClassData['status'] != $status) $changes[] = ['field' => 'status', 'old' => $oldClassData['status'], 'new' => $status];
             
             if (!empty($changes)) {
@@ -335,6 +339,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <?php endforeach; ?>
                                 </datalist>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Type a new location or select from existing ones</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Department
+                                </label>
+                                <select name="department" id="department" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="Training" <?php echo (($class['department'] ?? 'Training') == 'Training') ? 'selected' : ''; ?>>Training</option>
+                                    <option value="Operation" <?php echo (($class['department'] ?? 'Training') == 'Operation') ? 'selected' : ''; ?>>Operation</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Issuance Authority
+                                </label>
+                                <select name="issuance_auth" id="issuance_auth" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <option value="completion" <?php echo (($class['issuance_auth'] ?? 'completion') == 'completion') ? 'selected' : ''; ?>>Completion</option>
+                                    <option value="attendance" <?php echo (($class['issuance_auth'] ?? 'completion') == 'attendance') ? 'selected' : ''; ?>>Attendance</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
