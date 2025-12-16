@@ -1152,6 +1152,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             break;
 
+        case 'add_flight_class_page':
+            $pagePath = 'admin/pricing/flight_class/index.php';
+            $pageName = 'Flight Class';
+            $requiredRoles = ['admin', 'manager'];
+            $description = 'Manage flight class configurations (Economy, Premium Economy, Business, First Class, etc.) with IATA codes';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Flight Class page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Flight Class page permission.';
+                }
+            } else {
+                $message = 'Flight Class page permission already exists.';
+            }
+            break;
+
+        case 'add_seat_configuration_page':
+            $pagePath = 'admin/pricing/seat_configuration/index.php';
+            $pageName = 'Seat Configuration';
+            $requiredRoles = ['admin', 'manager'];
+            $description = 'Manage aircraft seat configurations with flight class assignments (30 seats: 15 rows × 2 seats)';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Seat Configuration page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Seat Configuration page permission.';
+                }
+            } else {
+                $message = 'Seat Configuration page permission already exists.';
+            }
+            break;
+
         case 'add_flight_monitoring_dashboard_page':
             $pagePath = 'dashboard/flight_monitoring.php';
             $pageName = 'Flight Monitoring Dashboard';
@@ -1480,6 +1514,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } else {
                 $message = 'My Class page permission already exists.';
+            }
+            break;
+
+        case 'add_delete_class_page':
+            $pagePath = 'admin/training/class/delete';
+            $pageName = 'Delete Class';
+            $requiredRoles = ['admin'];
+            $description = 'Delete training classes and associated data (schedules, assignments)';
+            $existingPermission = getPagePermission($pagePath);
+            if (!$existingPermission) {
+                if (addNewPagePermission($pagePath, $pageName, $requiredRoles, $description)) {
+                    $message = 'Delete Class page permission added successfully.';
+                } else {
+                    $error = 'Failed to add Delete Class page permission. Please check the database connection and try again.';
+                }
+            } else {
+                $message = 'Delete Class page permission already exists.';
             }
             break;
             
@@ -2275,6 +2326,12 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         <button onclick="addIFSOCostsPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-dollar-sign mr-2"></i>IFSO Costs
                         </button>
+                        <button onclick="addFlightClassPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-plane mr-2"></i>Flight Class
+                        </button>
+                        <button onclick="addSeatConfigurationPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-chair mr-2"></i>Seat Configuration
+                        </button>
                         <button onclick="addFlightMonitoringDashboardPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-plane-departure mr-2"></i>Flight Monitoring Dashboard
                         </button>
@@ -2331,6 +2388,9 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                         </button>
                         <button onclick="addMyClassPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
                             <i class="fas fa-chalkboard-teacher mr-2"></i>My Class
+                        </button>
+                        <button onclick="addDeleteClassPage(); closeQuickAddModal();" class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete Class
                         </button>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700 my-2 md:col-span-2"></div>
@@ -2582,20 +2642,61 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
         function loadUsersForIndividualAccess(pagePath) {
             currentPagePath = pagePath;
             const userSearch = document.getElementById('user_search');
-            userSearch.value = '';
+            const searchResults = document.getElementById('user_search_results');
+            
+            if (userSearch) {
+                userSearch.value = '';
+            }
             clearSelectedUsers();
             
+            // Show loading message
+            if (searchResults) {
+                searchResults.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading users...</div>';
+                searchResults.classList.remove('hidden');
+            }
+            
             // Make AJAX call to get users without individual access
-            fetch(`api/get_users_without_access.php?page_path=${encodeURIComponent(pagePath)}`)
-                .then(response => response.json())
+            fetch(`/admin/api/get_users_without_access.php?page_path=${encodeURIComponent(pagePath)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    allUsers = data.users || [];
+                    if (data.error) {
+                        console.error('API Error:', data.error);
+                        allUsers = [];
+                        if (searchResults) {
+                            searchResults.innerHTML = '<div class="p-4 text-center text-red-500">Error: ' + escapeHtml(data.error) + '</div>';
+                            searchResults.classList.remove('hidden');
+                        }
+                    } else {
+                        allUsers = data.users || [];
+                        if (allUsers.length === 0) {
+                            if (searchResults) {
+                                searchResults.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">No users available. All users may already have access to this page.</div>';
+                                searchResults.classList.remove('hidden');
+                            }
+                        } else {
+                            if (searchResults) {
+                                searchResults.classList.add('hidden');
+                            }
+                        }
+                    }
                     // Initialize search functionality
                     setupUserSearch();
                 })
                 .catch(error => {
                     console.error('Error loading users:', error);
                     allUsers = [];
+                    // Show error message to user
+                    if (searchResults) {
+                        searchResults.innerHTML = '<div class="p-4 text-center text-red-500">Error loading users: ' + escapeHtml(error.message) + '</div>';
+                        searchResults.classList.remove('hidden');
+                    }
                 });
         }
 
@@ -3826,6 +3927,40 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
             }
         }
 
+        function addFlightClassPage() {
+            if (confirm('Add Flight Class page permission with admin and manager roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_flight_class_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addSeatConfigurationPage() {
+            if (confirm('Add Seat Configuration page permission with admin and manager roles?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_seat_configuration_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         function addRoutePricePage() {
             if (confirm('Add Route Price page permission with admin and manager roles?')) {
                 const button = event.target;
@@ -4160,6 +4295,23 @@ function renderTreeView($tree, $level = 0, $parentPath = '', $parentFolderId = '
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="add_my_class_page">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function addDeleteClassPage() {
+            if (confirm('Add Delete Class page permission with admin role?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                button.disabled = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="add_delete_class_page">
                 `;
                 document.body.appendChild(form);
                 form.submit();

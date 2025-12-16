@@ -33,17 +33,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($username) || empty($password)) {
         $error_message = 'Please enter both username and password.';
     } else {
-        // Test database connection first
-        try {
-            $pdo = getDBConnection();
-            if (loginUser($username, $password)) {
-                header('Location: /dashboard/');
-                exit();
-            } else {
-                $error_message = 'Invalid username or password.';
+        // Check application availability first
+        $availability = checkApplicationAvailability();
+        if (!$availability['available']) {
+            $error_message = $availability['message'];
+        } else {
+            // Test database connection first
+            try {
+                $pdo = getDBConnection();
+                if (loginUser($username, $password)) {
+                    header('Location: /dashboard/');
+                    exit();
+                } else {
+                    $error_message = 'Invalid username or password.';
+                }
+            } catch (Exception $e) {
+                $error_message = 'Database connection error. Please try again later.';
             }
-        } catch (Exception $e) {
-            $error_message = 'Database connection error. Please try again later.';
         }
     }
 }
@@ -90,6 +96,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             <!-- Maintenance Message -->
             
+
+            <!-- Application Availability Check -->
+            <?php
+            $availability = checkApplicationAvailability();
+            if (!$availability['available']):
+            ?>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <?php echo htmlspecialchars($availability['message']); ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Login Form -->
             <form class="mt-8 space-y-6" method="POST" action="">

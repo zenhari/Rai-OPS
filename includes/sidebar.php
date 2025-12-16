@@ -7,6 +7,12 @@ if (!isLoggedIn()) {
     }
 }
 
+// Check application availability
+$availability = checkApplicationAvailability();
+if (!$availability['available']) {
+    die($availability['message']);
+}
+
 $current_user = getCurrentUser();
 $userRole = $current_user['role_name'] ?? 'employee';
 
@@ -896,7 +902,14 @@ function getAbsolutePath($path) {
             <?php endif; ?>
 
             <!-- Price -->
-            <?php if (checkPageAccessEnhanced('admin/pricing/routes/index.php')): ?>
+            <?php 
+            $hasPriceAccess = checkPageAccessEnhanced('admin/pricing/routes/index.php') || 
+                             checkPageAccessEnhanced('admin/pricing/catering/index.php') ||
+                             checkPageAccessEnhanced('admin/pricing/ifso_costs/index.php') ||
+                             checkPageAccessEnhanced('admin/pricing/flight_class/index.php') ||
+                             checkPageAccessEnhanced('admin/pricing/seat_configuration/index.php');
+            ?>
+            <?php if ($hasPriceAccess): ?>
             <div class="space-y-1">
                 <button id="price-toggle" class="group flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white transition-colors duration-200">
                     <div class="flex items-center">
@@ -907,24 +920,34 @@ function getAbsolutePath($path) {
                 </button>
                 <div id="price-menu" class="hidden pl-6 space-y-1">
                     <a href="<?php echo getAbsolutePath('admin/pricing/routes/index.php'); ?>" 
-                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'routes' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                       class="menu-item menu-child group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'routes' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-route mr-3 text-sm"></i>
-                        Ground Price
+                        <span class="menu-text">Ground Price</span>
                     </a>
                     <?php if (checkPageAccessEnhanced('admin/pricing/catering/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/pricing/catering/index.php'); ?>" 
-                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'catering' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                       class="menu-item menu-child group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'catering' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-utensils mr-3 text-sm"></i>
-                        Catering
+                        <span class="menu-text">Catering</span>
                     </a>
                     <?php endif; ?>
                     <?php if (checkPageAccessEnhanced('admin/pricing/ifso_costs/index.php')): ?>
                     <a href="<?php echo getAbsolutePath('admin/pricing/ifso_costs/index.php'); ?>" 
-                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'ifso_costs' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                       class="menu-item menu-child group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'ifso_costs' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
                         <i class="fas fa-dollar-sign mr-3 text-sm"></i>
-                        IFSO Costs
+                        <span class="menu-text">IFSO Costs</span>
                     </a>
                     <?php endif; ?>
+                    <a href="<?php echo getAbsolutePath('admin/pricing/flight_class/index.php'); ?>" 
+                       class="menu-item menu-child group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'flight_class' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-plane mr-3 text-sm"></i>
+                        <span class="menu-text">Flight Class</span>
+                    </a>
+                    <a href="<?php echo getAbsolutePath('admin/pricing/seat_configuration/index.php'); ?>" 
+                       class="menu-item menu-child group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 <?php echo ($current_dir == 'seat_configuration' && strpos($_SERVER['REQUEST_URI'], '/admin/pricing/') !== false) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'; ?>">
+                        <i class="fas fa-chair mr-3 text-sm"></i>
+                        <span class="menu-text">Seat Configuration</span>
+                    </a>
                 </div>
             </div>
             <?php endif; ?>

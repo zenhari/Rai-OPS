@@ -10,6 +10,9 @@ logActivity('view', __FILE__, ['page_name' => 'Defined Class', 'section' => 'Tra
 $current_user = getCurrentUser();
 $db = getDBConnection();
 
+// Check if user has access to delete class
+$canDelete = checkPageAccessEnhanced('admin/training/class/delete');
+
 // Get all classes with instructor and schedule info
 $stmt = $db->query("SELECT c.*, 
                     CONCAT(u1.first_name, ' ', u1.last_name) as instructor_name,
@@ -208,16 +211,19 @@ $classes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                        title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    <a href="assign.php?id=<?php echo $class['id']; ?>"
-                                                       class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                                                       title="Assign to Users/Roles">
-                                                        <i class="fas fa-user-plus"></i>
-                                                    </a>
                                                     <a href="view.php?id=<?php echo $class['id']; ?>"
                                                        class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
                                                        title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
+                                                    <?php if ($canDelete): ?>
+                                                        <a href="delete.php?id=<?php echo $class['id']; ?>"
+                                                           class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                           title="Delete Class"
+                                                           onclick="return confirm('Are you sure you want to delete this class? This action cannot be undone.');">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </a>
+                                                    <?php endif; ?>
                                                 </div>
                                             </td>
                                         </tr>

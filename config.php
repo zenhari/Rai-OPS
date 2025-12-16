@@ -184,6 +184,51 @@ function isLoggedIn() {
     return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
 }
 
+// Check application availability from remote config file
+function checkApplicationAvailability() {
+    $configUrl = 'https://mehdizenhari.com/Rai-OPS/config.txt';
+    $errorMessage = null;
+    
+    try {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $configUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        
+        $content = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode == 200 && $content !== false) {
+            $lines = explode("\n", trim($content));
+            $firstLine = trim($lines[0] ?? '');
+            
+            // Check if first line contains "ok"
+            if (stripos($firstLine, 'ok') !== false) {
+                return ['available' => true, 'message' => null];
+            } else {
+                // Get second line as error message
+                $errorMessage = trim($lines[1] ?? 'Application is not available');
+                return ['available' => false, 'message' => $errorMessage];
+            }
+        } else {
+            // If can't fetch, get second line from content if available
+            if ($content !== false) {
+                $lines = explode("\n", trim($content));
+                $errorMessage = trim($lines[1] ?? 'Application is not available');
+            } else {
+                $errorMessage = 'Application is not available';
+            }
+            return ['available' => false, 'message' => $errorMessage];
+        }
+    } catch (Exception $e) {
+        return ['available' => false, 'message' => 'Application is not available'];
+    }
+}
+
 function logoutUser() {
     // Log logout activity before destroying session
     if (isLoggedIn()) {
@@ -5833,6 +5878,154 @@ function getAllCatering() {
     $db = getDBConnection();
     $stmt = $db->query("SELECT * FROM catering ORDER BY name ASC, custom_name ASC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ==================== FLIGHT CLASS FUNCTIONS ====================
+
+/**
+ * Add new flight class
+ */
+function addFlightClass($name, $code, $description = null, $status = 'active') {
+    $db = getDBConnection();
+    
+    $stmt = $db->prepare("INSERT INTO flight_classes (name, code, description, status) VALUES (?, ?, ?, ?)");
+    
+    return $stmt->execute([
+        $name,
+        strtoupper($code),
+        $description,
+        $status
+    ]);
+}
+
+/**
+ * Update flight class
+ */
+function updateFlightClass($id, $name, $code, $description = null, $status = 'active') {
+    $db = getDBConnection();
+    
+    $stmt = $db->prepare("UPDATE flight_classes 
+                          SET name = ?, code = ?, description = ?, status = ?
+                          WHERE id = ?");
+    
+    return $stmt->execute([
+        $name,
+        strtoupper($code),
+        $description,
+        $status,
+        $id
+    ]);
+}
+
+/**
+ * Delete flight class
+ */
+function deleteFlightClass($id) {
+    $db = getDBConnection();
+    $stmt = $db->prepare("DELETE FROM flight_classes WHERE id = ?");
+    return $stmt->execute([$id]);
+}
+
+/**
+ * Get flight class by ID
+ */
+function getFlightClassById($id) {
+    $db = getDBConnection();
+    $stmt = $db->prepare("SELECT * FROM flight_classes WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get all flight classes
+ */
+function getAllFlightClasses() {
+    $db = getDBConnection();
+    $stmt = $db->query("SELECT * FROM flight_classes ORDER BY name ASC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ==================== AIRCRAFT SEAT CONFIGURATION FUNCTIONS ====================
+
+/**
+ * Add new aircraft seat configuration
+ */
+function addAircraftSeatConfiguration($name, $totalSeats, $rows, $seatsPerRow, $seatConfiguration, $createdBy = null) {
+    $db = getDBConnection();
+    
+    $stmt = $db->prepare("INSERT INTO aircraft_seat_configurations (name, total_seats, `rows`, seats_per_row, seat_configuration, created_by) 
+                          VALUES (?, ?, ?, ?, ?, ?)");
+    
+    return $stmt->execute([
+        $name,
+        $totalSeats,
+        $rows,
+        $seatsPerRow,
+        json_encode($seatConfiguration),
+        $createdBy
+    ]);
+}
+
+/**
+ * Update aircraft seat configuration
+ */
+function updateAircraftSeatConfiguration($id, $name, $totalSeats, $rows, $seatsPerRow, $seatConfiguration) {
+    $db = getDBConnection();
+    
+    $stmt = $db->prepare("UPDATE aircraft_seat_configurations 
+                          SET name = ?, total_seats = ?, `rows` = ?, seats_per_row = ?, seat_configuration = ?
+                          WHERE id = ?");
+    
+    return $stmt->execute([
+        $name,
+        $totalSeats,
+        $rows,
+        $seatsPerRow,
+        json_encode($seatConfiguration),
+        $id
+    ]);
+}
+
+/**
+ * Delete aircraft seat configuration
+ */
+function deleteAircraftSeatConfiguration($id) {
+    $db = getDBConnection();
+    $stmt = $db->prepare("DELETE FROM aircraft_seat_configurations WHERE id = ?");
+    return $stmt->execute([$id]);
+}
+
+/**
+ * Get aircraft seat configuration by ID
+ */
+function getAircraftSeatConfigurationById($id) {
+    $db = getDBConnection();
+    $stmt = $db->prepare("SELECT * FROM aircraft_seat_configurations WHERE id = ?");
+    $stmt->execute([$id]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($config && !empty($config['seat_configuration'])) {
+        $config['seat_configuration'] = json_decode($config['seat_configuration'], true);
+    }
+    
+    return $config;
+}
+
+/**
+ * Get all aircraft seat configurations
+ */
+function getAllAircraftSeatConfigurations() {
+    $db = getDBConnection();
+    $stmt = $db->query("SELECT * FROM aircraft_seat_configurations ORDER BY created_at DESC");
+    $configs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($configs as &$config) {
+        if (!empty($config['seat_configuration'])) {
+            $config['seat_configuration'] = json_decode($config['seat_configuration'], true);
+        }
+    }
+    
+    return $configs;
 }
 
 // ==================== IFSO COSTS FUNCTIONS ====================

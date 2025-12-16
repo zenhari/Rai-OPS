@@ -7,6 +7,12 @@ if (!isLoggedIn()) {
     exit();
 }
 
+// Check application availability
+$availability = checkApplicationAvailability();
+if (!$availability['available']) {
+    die($availability['message']);
+}
+
 $user = getCurrentUser();
 $userRole = $user['role_name'] ?? 'employee';
 
@@ -3171,9 +3177,11 @@ try {
         // Delay Code Management Functions
         function initializeDelayCodeHandlers() {
             // Enable next row when current row is filled (Code and Minutes both filled)
-            for (let i = 1; i <= 4; i++) {
-                const codeSelect = document.getElementById(i === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${i}`);
+            for (let i = 1; i <= 5; i++) {
+                const codeField = i === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${i}`;
+                const codeSelect = document.getElementById(codeField);
                 const minutesInput = document.getElementById(`minutes_${i}`);
+                const subCodeSelect = document.getElementById(`delay_diversion_sub_codes_${i}`);
                 
                 if (codeSelect) {
                     codeSelect.addEventListener('change', function() {
@@ -3185,6 +3193,15 @@ try {
                     minutesInput.addEventListener('input', function() {
                         checkAndShowNextRow(i);
                     });
+                    minutesInput.addEventListener('blur', function() {
+                        checkAndShowNextRow(i);
+                    });
+                }
+                
+                if (subCodeSelect) {
+                    subCodeSelect.addEventListener('change', function() {
+                        checkAndShowNextRow(i);
+                    });
                 }
             }
         }
@@ -3193,9 +3210,14 @@ try {
             const codeSelect = document.getElementById(currentRowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${currentRowNumber}`);
             const minutesInput = document.getElementById(`minutes_${currentRowNumber}`);
             
-            if (codeSelect && minutesInput && codeSelect.value && minutesInput.value) {
-                // Current row is complete, show next row
-                enableNextRow(currentRowNumber + 1);
+            if (codeSelect && minutesInput) {
+                const hasCode = codeSelect.value && codeSelect.value.trim() !== '';
+                const hasMinutes = minutesInput.value && minutesInput.value.trim() !== '';
+                
+                if (hasCode && hasMinutes) {
+                    // Current row is complete, show next row
+                    enableNextRow(currentRowNumber + 1);
+                }
             }
         }
         
@@ -3203,8 +3225,11 @@ try {
             if (rowNumber > 5) return;
             
             const nextRow = document.getElementById(`delay_row_${rowNumber}`);
-            const codeSelect = document.getElementById(rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`);
+            const codeField = rowNumber === 1 ? 'delay_diversion_codes' : `delay_diversion_codes_${rowNumber}`;
+            const codeSelect = document.getElementById(codeField);
+            const searchInput = document.getElementById(`${codeField}_search`);
             const minutesInput = document.getElementById(`minutes_${rowNumber}`);
+            const subCodeSelect = document.getElementById(`delay_diversion_sub_codes_${rowNumber}`);
             
             // Show the next row
             if (nextRow) {
@@ -3215,7 +3240,9 @@ try {
             
             // Enable inputs
             if (codeSelect) codeSelect.disabled = false;
+            if (searchInput) searchInput.disabled = false;
             if (minutesInput) minutesInput.disabled = false;
+            if (subCodeSelect) subCodeSelect.disabled = false;
         }
         
         // Searchable Select Functions for Delay Codes

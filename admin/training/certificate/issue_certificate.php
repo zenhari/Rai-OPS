@@ -71,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $end_date = trim($_POST['end_date'] ?? '');
     $issue_date = trim($_POST['issue_date'] ?? '');
     $expire_date = trim($_POST['expire_date'] ?? '');
+    // If expire_date is empty, set it to "Permanent"
+    if (empty($expire_date)) {
+        $expire_date = 'Permanent';
+    }
     $certificate_type = trim($_POST['certificate_type'] ?? '');
     $issuance_auth = trim($_POST['issuance_auth'] ?? 'completion');
     
@@ -120,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $start_date ?: null,
                     $end_date ?: null,
                     $issue_date,
-                    $expire_date ?: null,
+                    $expire_date, // Will be "Permanent" if empty
                     $certificate_type ?: null,
                     $issuance_auth
                 ]);
@@ -294,8 +298,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($fullCertificateno) {
                     imagettftext($image, 35, $angle, 2365, 1542, $fontColor, $fontFile, $fullCertificateno);
                 }
-                if ($expire_date) {
+                if ($expire_date && $expire_date !== 'Permanent') {
                     imagettftext($image, 40, $angle, 2210, 1740, $fontColor, $fontFile, $expire_date);
+                } elseif ($expire_date === 'Permanent') {
+                    imagettftext($image, 40, $angle, 2210, 1740, $fontColor, $fontFile, 'Permanent');
                 }
                 if ($end_date) {
                     imagettftext($image, 40, $angle, 2150, 1640, $fontColor, $fontFile, $end_date);
@@ -552,9 +558,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <label for="nationalid" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             National ID <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="text" id="nationalid" name="nationalid" required
-                                               value="<?php echo htmlspecialchars($_POST['nationalid'] ?? ''); ?>"
-                                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                        <div class="flex gap-2">
+                                            <input type="text" id="nationalid" name="nationalid" required
+                                                   value="<?php echo htmlspecialchars($_POST['nationalid'] ?? ''); ?>"
+                                                   class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                            <button type="button" onclick="openUserSearchModal()" 
+                                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     
                                     <div>
@@ -724,7 +736,184 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 
+    <!-- User Search Modal -->
+    <div id="userSearchModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Background overlay -->
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeUserSearchModal()"></div>
+            
+            <!-- Modal panel -->
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                            <i class="fas fa-search mr-2"></i>Search User
+                        </h3>
+                        <button type="button" onclick="closeUserSearchModal()" 
+                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Search Form -->
+                    <div class="space-y-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    National ID
+                                </label>
+                                <input type="text" id="search_national_id" 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                       placeholder="Enter National ID">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    First Name
+                                </label>
+                                <input type="text" id="search_first_name" 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                       placeholder="Enter First Name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Last Name
+                                </label>
+                                <input type="text" id="search_last_name" 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                       placeholder="Enter Last Name">
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="searchUsers()" 
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200">
+                                <i class="fas fa-search mr-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Results -->
+                    <div id="searchResults" class="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
+                        <div class="p-4 text-center text-gray-500 dark:text-gray-400">
+                            Enter search criteria and click Search
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // User Search Modal Functions
+        function openUserSearchModal() {
+            document.getElementById('userSearchModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeUserSearchModal() {
+            document.getElementById('userSearchModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        function searchUsers() {
+            const nationalId = document.getElementById('search_national_id').value.trim();
+            const firstName = document.getElementById('search_first_name').value.trim();
+            const lastName = document.getElementById('search_last_name').value.trim();
+            
+            if (!nationalId && !firstName && !lastName) {
+                alert('Please enter at least one search criteria');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin text-blue-500"></i> Searching...</div>';
+            
+            // Build query string
+            const params = new URLSearchParams();
+            if (nationalId) params.append('national_id', nationalId);
+            if (firstName) params.append('first_name', firstName);
+            if (lastName) params.append('last_name', lastName);
+            
+            fetch(`<?php echo base_url(); ?>admin/api/search_user_for_certificate.php?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.users && data.users.length > 0) {
+                        let html = '<div class="divide-y divide-gray-200 dark:divide-gray-700">';
+                        data.users.forEach(user => {
+                            const fullName = (user.first_name || '') + ' ' + (user.last_name || '');
+                            html += `
+                                <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" 
+                                     onclick="selectUser(${JSON.stringify(user).replace(/"/g, '&quot;')})">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">${escapeHtml(fullName.trim())}</div>
+                                            <div class="text-sm text-gray-500 dark:text-gray-400">
+                                                ${user.national_id ? 'ID: ' + escapeHtml(user.national_id) : ''}
+                                                ${user.email ? ' | Email: ' + escapeHtml(user.email) : ''}
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        resultsDiv.innerHTML = html;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">No users found</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching users:', error);
+                    resultsDiv.innerHTML = '<div class="p-4 text-center text-red-500">Error searching users. Please try again.</div>';
+                });
+        }
+        
+        function selectUser(user) {
+            // Fill form fields
+            if (user.national_id) {
+                document.getElementById('nationalid').value = user.national_id;
+            }
+            if (user.full_name) {
+                document.getElementById('name').value = user.full_name.toUpperCase();
+            }
+            if (user.email) {
+                document.getElementById('email').value = user.email;
+            }
+            if (user.phone_number) {
+                document.getElementById('mobile').value = user.phone_number;
+            }
+            if (user.date_of_birth) {
+                document.getElementById('birthday').value = user.date_of_birth;
+            }
+            
+            // Close modal
+            closeUserSearchModal();
+            
+            // Show notification
+            showNotification('User information loaded successfully', 'success');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Allow Enter key to search in modal
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInputs = ['search_national_id', 'search_first_name', 'search_last_name'];
+            searchInputs.forEach(inputId => {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            searchUsers();
+                        }
+                    });
+                }
+            });
+        });
+        
         // Auto-fill form fields based on National ID
         document.addEventListener('DOMContentLoaded', function() {
             const nationalIdInput = document.getElementById('nationalid');
